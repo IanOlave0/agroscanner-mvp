@@ -1,16 +1,15 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigation from './src/navigation';
 
-// ── App principal ─────────────────────────
-// Este es el punto de entrada de AgroScanner
-// NavigationContainer envuelve toda la app
-// y habilita el sistema de navegación
 const App = () => {
   return (
-    <NavigationContainer>
-      <AppNavigation />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <AppNavigation />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
 

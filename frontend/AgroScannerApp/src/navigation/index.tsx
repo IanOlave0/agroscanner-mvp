@@ -5,151 +5,97 @@ import { View, Text, StyleSheet } from 'react-native';
 import { RootStackParams } from '../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from '../constants';
 
-// ── Importar pantallas ────────────────────
-// Auth
-import WelcomeScreen  from '../screens/auth/WelcomeScreen';
-import LoginScreen    from '../screens/auth/LoginScreen';
+// Importar pantallas
+import WelcomeScreen from '../screens/auth/WelcomeScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
 import RegistroScreen from '../screens/auth/RegistroScreen';
-
-// Main
-import HomeScreen     from '../screens/main/HomeScreen';
-import PerfilScreen   from '../screens/main/PerfilScreen';
-
-// Scanner
+import HomeScreen from '../screens/main/HomeScreen';
+import PerfilScreen from '../screens/main/PerfilScreen';
 import SeleccionCultivoScreen from '../screens/scanner/SeleccionCultivoScreen';
-import CamaraScreen           from '../screens/scanner/CamaraScreen';
-import ResultadoScreen        from '../screens/scanner/ResultadoScreen';
-
-// Historial
+import CamaraScreen from '../screens/scanner/CamaraScreen';
+import ResultadoScreen from '../screens/scanner/ResultadoScreen';
 import HistorialScreen from '../screens/historial/HistorialScreen';
-
-// Mapa
 import MapaScreen from '../screens/mapa/MapaScreen';
 
-// ── Navegadores ───────────────────────────
 const Stack = createNativeStackNavigator<RootStackParams>();
-const Tab   = createBottomTabNavigator();
+const Tab = createBottomTabNavigator();
 
-// ── Ícono simple para los tabs ────────────
-const TabIcon = ({
-  emoji,
-  label,
-  focused,
-}: {
-  emoji: string;
-  label: string;
-  focused: boolean;
-}) => (
+// 1. Componente de Icono Estabilizado (FUERA de los navegadores)
+const TabIcon = ({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) => (
   <View style={styles.tabItem}>
     <Text style={styles.tabEmoji}>{emoji}</Text>
-    <Text style={[
-      styles.tabLabel,
-      { color: focused ? COLORS.primary : COLORS.textMuted },
-    ]}>
+    <Text style={[styles.tabLabel, { color: focused ? COLORS.primary : COLORS.textMuted }]}>
       {label}
     </Text>
   </View>
 );
 
-// ── Tab Navigator (menú inferior) ─────────
+// 2. Función generadora de iconos para evitar advertencias de ESLint
+const makeIcon = (emoji: string, label: string) => ({ focused }: { focused: boolean }) => (
+  <TabIcon emoji={emoji} label={label} focused={focused} />
+);
+
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
-      headerShown:     false,
-      tabBarStyle:     styles.tabBar,
+      headerShown: false,
+      tabBarStyle: styles.tabBar,
       tabBarShowLabel: false,
     }}
   >
-    <Tab.Screen
-      name="Home"
-      component={HomeScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="🏠" label="Inicio" focused={focused} />
-        ),
-      }}
+    <Tab.Screen 
+      name="Home" 
+      component={HomeScreen} 
+      options={{ tabBarIcon: makeIcon("🏠", "Inicio") }} 
     />
-    <Tab.Screen
-      name="Scanner"
-      component={SeleccionCultivoScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="📷" label="Escanear" focused={focused} />
-        ),
-      }}
+    <Tab.Screen 
+      name="Scanner" 
+      component={SeleccionCultivoScreen} 
+      options={{ tabBarIcon: makeIcon("📷", "Escanear") }} 
     />
-    <Tab.Screen
-      name="Historial"
-      component={HistorialScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="📋" label="Historial" focused={focused} />
-        ),
-      }}
+    <Tab.Screen 
+      name="Historial" 
+      component={HistorialScreen} 
+      options={{ tabBarIcon: makeIcon("📋", "Historial") }} 
     />
-    <Tab.Screen
-      name="Mapa"
-      component={MapaScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="🗺️" label="Mapa" focused={focused} />
-        ),
-      }}
+    <Tab.Screen 
+      name="Mapa" 
+      component={MapaScreen} 
+      options={{ tabBarIcon: makeIcon("🗺️", "Mapa") }} 
     />
-    <Tab.Screen
-      name="Perfil"
-      component={PerfilScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="👤" label="Perfil" focused={focused} />
-        ),
-      }}
+    <Tab.Screen 
+      name="Perfil" 
+      component={PerfilScreen} 
+      options={{ tabBarIcon: makeIcon("👤", "Perfil") }} 
     />
   </Tab.Navigator>
 );
 
-// ── Stack Navigator principal ─────────────
 const AppNavigation = () => (
-  <Stack.Navigator
-    screenOptions={{ headerShown: false }}
-    initialRouteName="Welcome"
-  >
-    {/* Auth */}
-    <Stack.Screen name="Welcome"  component={WelcomeScreen} />
-    <Stack.Screen name="Login"    component={LoginScreen} />
+  <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
+    <Stack.Screen name="Welcome" component={WelcomeScreen} />
+    <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Registro" component={RegistroScreen} />
-
-    {/* App principal */}
+    {/* La ruta 'Home' ahora apunta al TabNavigator */}
     <Stack.Screen name="Home" component={MainTabs} />
-
-    {/* Scanner flow */}
     <Stack.Screen name="SeleccionCultivo" component={SeleccionCultivoScreen} />
-    <Stack.Screen name="Camara"           component={CamaraScreen} />
-    <Stack.Screen name="Resultado"        component={ResultadoScreen} />
+    <Stack.Screen name="Camara" component={CamaraScreen} />
+    <Stack.Screen name="Resultado" component={ResultadoScreen} />
   </Stack.Navigator>
 );
 
 export default AppNavigation;
 
-// ── Estilos ───────────────────────────────
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.white,
-    borderTopColor:  COLORS.border,
-    borderTopWidth:  1,
-    height:          72,
-    paddingBottom:   8,
-    paddingTop:      8,
+    borderTopColor: COLORS.border,
+    borderTopWidth: 1,
+    height: 72,
+    paddingBottom: 8,
+    paddingTop: 8,
   },
-  tabItem: {
-    alignItems: 'center',
-    gap:        4,
-  },
-  tabEmoji: {
-    fontSize: 22,
-  },
-  tabLabel: {
-    fontSize:   FONT_SIZE.xs,
-    fontWeight: FONT_WEIGHT.medium,
-  },
+  tabItem: { alignItems: 'center', gap: 4 },
+  tabEmoji: { fontSize: 22 },
+  tabLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium },
 });

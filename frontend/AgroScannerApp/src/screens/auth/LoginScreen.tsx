@@ -22,18 +22,14 @@ type Props = {
 
 const LoginScreen = ({ navigation }: Props) => {
   // ── Estado del formulario ─────────────
-  // useState guarda valores que cambian en pantalla
-  // cuando el usuario escribe su correo, el estado se actualiza
-  const [correo,    setCorreo]    = useState('');
-  const [password,  setPassword]  = useState('');
-  const [verPwd,    setVerPwd]    = useState(false);
-  const [cargando,  setCargando]  = useState(false);
+  const [correo, setCorreo] = useState('');
+  const [password, setPassword] = useState('');
+  const [verPwd, setVerPwd] = useState(false);
+  const [cargando, setCargando] = useState(false);
   const [errCorreo, setErrCorreo] = useState('');
-  const [errPwd,    setErrPwd]    = useState('');
+  const [errPwd, setErrPwd] = useState('');
 
   // ── Validación del formulario ─────────
-  // Antes de enviar al backend, verificamos
-  // que los campos estén bien llenados
   const validar = (): boolean => {
     let valido = true;
 
@@ -54,17 +50,21 @@ const LoginScreen = ({ navigation }: Props) => {
     return valido;
   };
 
-  // ── Enviar login al backend ───────────
+  // ── Enviar login ──────────────────────
   const handleLogin = async () => {
     if (!validar()) return;
 
     setCargando(true);
     try {
-      // Aquí irá la llamada real al backend FastAPI
-      // Por ahora simulamos un login exitoso
-      await new Promise(r => setTimeout(r, 1000));
-      navigation.navigate('Home');
-    } catch (e) {
+      // CORRECCIÓN: Tipado de la promesa para evitar error 'unknown'
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 1000);
+      });
+
+      // IMPORTANTE: 'Home' en tu index.ts es el nombre del TabNavigator
+      navigation.navigate('Home'); 
+    } catch (error) {
+      console.error(error);
       Alert.alert(
         'Error al iniciar sesión',
         'Verifica tu correo y contraseña',
@@ -86,8 +86,7 @@ const LoginScreen = ({ navigation }: Props) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-
-        {/* ── Botón regresar ── */}
+        {/* Botón regresar */}
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
@@ -95,16 +94,15 @@ const LoginScreen = ({ navigation }: Props) => {
           <Text style={styles.backText}>← Regresar</Text>
         </TouchableOpacity>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logoEmoji}>🌿</Text>
           <Text style={styles.title}>AgroScanner</Text>
           <Text style={styles.subtitle}>Bienvenido de vuelta</Text>
         </View>
 
-        {/* ── Formulario ── */}
+        {/* Formulario */}
         <View style={styles.form}>
-
           {/* Campo correo */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Correo Electrónico</Text>
@@ -120,9 +118,7 @@ const LoginScreen = ({ navigation }: Props) => {
               value={correo}
               onChangeText={setCorreo}
             />
-            {errCorreo ? (
-              <Text style={styles.errorText}>⚠ {errCorreo}</Text>
-            ) : null}
+            {errCorreo ? <Text style={styles.errorText}>⚠ {errCorreo}</Text> : null}
           </View>
 
           {/* Campo contraseña */}
@@ -145,32 +141,27 @@ const LoginScreen = ({ navigation }: Props) => {
                 style={styles.eyeBtn}
                 onPress={() => setVerPwd(v => !v)}
               >
-                <Text style={styles.eyeIcon}>
-                  {verPwd ? '🙈' : '👁️'}
-                </Text>
+                <Text style={styles.eyeIcon}>{verPwd ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
-            {errPwd ? (
-              <Text style={styles.errorText}>⚠ {errPwd}</Text>
-            ) : null}
+            {errPwd ? <Text style={styles.errorText}>⚠ {errPwd}</Text> : null}
           </View>
-
         </View>
 
-        {/* ── Botón login ── */}
+        {/* Botón login */}
         <TouchableOpacity
           style={[styles.btnLogin, cargando && styles.btnDisabled]}
           onPress={handleLogin}
           disabled={cargando}
-          activeOpacity={0.85}
         >
-          {cargando
-            ? <ActivityIndicator color={COLORS.white} size="small" />
-            : <Text style={styles.btnLoginText}>INICIAR SESIÓN</Text>
-          }
+          {cargando ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.btnLoginText}>INICIAR SESIÓN</Text>
+          )}
         </TouchableOpacity>
 
-        {/* ── Link a registro ── */}
+        {/* Link a registro */}
         <View style={styles.registerRow}>
           <Text style={styles.registerLabel}>¿No tienes cuenta? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Registro')}>
@@ -178,18 +169,17 @@ const LoginScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Separador ── */}
+        {/* Separador */}
         <View style={styles.separador}>
           <View style={styles.linea} />
           <Text style={styles.separadorText}>o continúa sin cuenta</Text>
           <View style={styles.linea} />
         </View>
 
-        {/* ── Botón invitado ── */}
+        {/* Botón invitado */}
         <TouchableOpacity
           style={styles.btnGuest}
           onPress={() => navigation.navigate('Home')}
-          activeOpacity={0.85}
         >
           <Text style={styles.btnGuestText}>
             📷  Escanear sin cuenta
@@ -203,141 +193,91 @@ const LoginScreen = ({ navigation }: Props) => {
 
 export default LoginScreen;
 
+// ── Estilos ───────────────────────────────
 const styles = StyleSheet.create({
-  kav: {
-    flex:            1,
-    backgroundColor: COLORS.bgPrimary,
-  },
+  kav: { flex: 1, backgroundColor: COLORS.bgPrimary },
   scroll: {
-    flexGrow:          1,
     paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.xl,
-    paddingBottom:     SPACING.xxl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl,
   },
-  backBtn: {
-    marginBottom: SPACING.lg,
-  },
+  backBtn: { marginBottom: SPACING.lg },
   backText: {
-    fontSize:   FONT_SIZE.md,
-    color:      COLORS.primary,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  header: {
-    alignItems:   'center',
-    marginBottom: SPACING.xl,
-    gap:          SPACING.xs,
-  },
-  logoEmoji: {
-    fontSize: 48,
-  },
-  title: {
-    fontSize:   FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color:      COLORS.primary,
-  },
-  subtitle: {
     fontSize: FONT_SIZE.md,
-    color:    COLORS.textSecondary,
-  },
-  form: {
-    gap:          SPACING.md,
-    marginBottom: SPACING.xl,
-  },
-  fieldGroup: {
-    gap: SPACING.xs,
-  },
-  label: {
-    fontSize:   FONT_SIZE.md,
+    color: COLORS.primary,
     fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.primary,
+  },
+  header: { alignItems: 'center', marginBottom: SPACING.xl },
+  logoEmoji: { fontSize: 48 },
+  title: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: FONT_WEIGHT.extrabold,
+    color: COLORS.primary,
+  },
+  subtitle: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
+  form: { gap: SPACING.md, marginBottom: SPACING.xl },
+  fieldGroup: { gap: SPACING.xs },
+  label: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.primary,
   },
   input: {
     backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.md,
-    borderWidth:     1.5,
-    borderColor:     COLORS.border,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
     paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.md,
-    fontSize:        FONT_SIZE.md,
-    color:           COLORS.textPrimary,
+    paddingVertical: Platform.OS === 'ios' ? SPACING.md : 10,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textPrimary,
   },
-  inputError: {
-    borderColor: COLORS.danger,
-  },
-  errorText: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.danger,
-  },
-  pwdContainer: {
-    position: 'relative',
-  },
-  pwdInput: {
-    paddingRight: 56,
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right:    SPACING.md,
-    top:      '20%',
-  },
-  eyeIcon: {
-    fontSize: 20,
-  },
+  inputError: { borderColor: COLORS.danger },
+  errorText: { fontSize: FONT_SIZE.sm, color: COLORS.danger },
+  pwdContainer: { position: 'relative', justifyContent: 'center' },
+  pwdInput: { paddingRight: 56 },
+  eyeBtn: { position: 'absolute', right: SPACING.md },
+  eyeIcon: { fontSize: 20 },
   btnLogin: {
     backgroundColor: COLORS.primary,
-    borderRadius:    RADIUS.lg,
+    borderRadius: RADIUS.lg,
     paddingVertical: SPACING.lg,
-    alignItems:      'center',
-    marginBottom:    SPACING.md,
+    alignItems: 'center',
+    marginBottom: SPACING.md,
   },
-  btnDisabled: {
-    opacity: 0.7,
-  },
+  btnDisabled: { opacity: 0.7 },
   btnLoginText: {
-    fontSize:      FONT_SIZE.lg,
-    fontWeight:    FONT_WEIGHT.bold,
-    color:         COLORS.textWhite,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
     letterSpacing: 1.5,
   },
-  registerRow: {
-    flexDirection:  'row',
-    justifyContent: 'center',
-    marginBottom:   SPACING.xl,
-  },
-  registerLabel: {
-    fontSize: FONT_SIZE.md,
-    color:    COLORS.textSecondary,
-  },
+  registerRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: SPACING.xl },
+  registerLabel: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
   registerLink: {
-    fontSize:   FONT_SIZE.md,
+    fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color:      COLORS.primary,
+    color: COLORS.primary,
   },
   separador: {
     flexDirection: 'row',
-    alignItems:    'center',
-    gap:           SPACING.sm,
-    marginBottom:  SPACING.md,
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  linea: {
-    flex:            1,
-    height:          1,
-    backgroundColor: COLORS.border,
-  },
-  separadorText: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textMuted,
-  },
+  linea: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  separadorText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
   btnGuest: {
-    backgroundColor: COLORS.bgGreen,
-    borderRadius:    RADIUS.lg,
+    backgroundColor: '#E8F5E9', // Un verde clarito para el botón de invitado
+    borderRadius: RADIUS.lg,
     paddingVertical: SPACING.md,
-    alignItems:      'center',
-    borderWidth:     1,
-    borderColor:     COLORS.primaryLight,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
   btnGuestText: {
-    fontSize:   FONT_SIZE.md,
+    fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.primary,
+    color: COLORS.primary,
   },
 });

@@ -154,10 +154,10 @@ const SeccionMenu = ({ titulo, children }: any) => (
 const ItemSwitch = ({ emoji, label, descripcion, valor, onChange }: any) => (
   <View style={styles.itemRow}>
     <Text style={styles.itemEmoji}>{emoji}</Text>
-    <div style={styles.itemInfo}>
+    <View style={styles.itemInfo}>
       <Text style={styles.itemLabel}>{label}</Text>
       {descripcion && <Text style={styles.itemDesc}>{descripcion}</Text>}
-    </div>
+    </View>
     <Switch
       value={valor}
       onValueChange={onChange}

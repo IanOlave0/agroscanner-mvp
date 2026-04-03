@@ -19,3 +19,13 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+        // Esta línea es CRUCIAL, le dice a Gradle que busque librerías dentro de node_modules
+        maven { url "$rootDir/../node_modules/react-native/android" }
+        maven { url 'https://www.jitpack.io' }
+    }
+}

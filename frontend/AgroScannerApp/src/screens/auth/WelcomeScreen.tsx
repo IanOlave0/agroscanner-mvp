@@ -1,55 +1,92 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-  Dimensions,
-  Image,
+  View, Text, StyleSheet, TouchableOpacity,
+  StatusBar, Animated, Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW, IMAGES } from '../../constants';
 
-const { width, height } = Dimensions.get('window');
+
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'Welcome'>;
 };
 
 const WelcomeScreen = ({ navigation }: Props) => {
+  // ── Animaciones de entrada ────────────
+  // Hacen que los elementos aparezcan
+  // suavemente al abrir la app
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+  Animated.parallel([
+    Animated.timing(fadeAnim, {
+      toValue:         1,
+      duration:        800,
+      useNativeDriver: true,
+    }),
+    Animated.timing(slideAnim, {
+      toValue:         0,
+      duration:        800,
+      useNativeDriver: true,
+    }),
+    Animated.spring(scaleAnim, {
+      toValue:         1,
+      tension:         50,
+      friction:        7,
+      useNativeDriver: true,
+    }),
+  ]).start();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
-      {/* ── Sección superior — Logo y nombre ── */}
-      <View style={styles.topSection}>
+      {/* Círculos decorativos de fondo */}
+      <View style={styles.circuloTop} />
+      <View style={styles.circuloBottom} />
 
-        {/* Logo */}
+      {/* ── Sección logo ── */}
+      <Animated.View style={[
+        styles.logoSection,
+        {
+          opacity:   fadeAnim,
+          transform: [
+            { translateY: slideAnim },
+            { scale: scaleAnim },
+          ],
+        },
+      ]}>
+        {/* Logo del jaguar */}
         <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🌿</Text>
+          <Image
+            source={IMAGES.logo}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
 
-        {/* Nombre de la app */}
         <Text style={styles.appName}>AgroScanner</Text>
         <Text style={styles.tagline}>
           Diagnóstico inteligente{'\n'}para el campo colimense
         </Text>
 
-        {/* Tarjetas de cultivos */}
+        {/* Chips de cultivos */}
         <View style={styles.cultivosRow}>
-          <CultivoChip emoji="🍋" nombre="Limón" />
-          <CultivoChip emoji="🍈" nombre="Papaya" />
-          <CultivoChip emoji="🍌" nombre="Plátano" />
+          <CultivoChip emoji="🍋" nombre="Limón" color="#F9A825" />
+          <CultivoChip emoji="🍈" nombre="Papaya" color="#E65100" />
+          <CultivoChip emoji="🍌" nombre="Plátano" color="#2E7D32" />
         </View>
+      </Animated.View>
 
-      </View>
+      {/* ── Botones ── */}
+      <Animated.View style={[styles.botonesSection, { opacity: fadeAnim }]}>
 
-      {/* ── Sección inferior — Botones ── */}
-      <View style={styles.bottomSection}>
-
-        {/* Botón principal */}
         <TouchableOpacity
           style={styles.btnPrimary}
           onPress={() => navigation.navigate('Login')}
@@ -58,7 +95,6 @@ const WelcomeScreen = ({ navigation }: Props) => {
           <Text style={styles.btnPrimaryText}>INICIAR SESIÓN</Text>
         </TouchableOpacity>
 
-        {/* Botón secundario */}
         <TouchableOpacity
           style={styles.btnSecondary}
           onPress={() => navigation.navigate('Registro')}
@@ -67,160 +103,176 @@ const WelcomeScreen = ({ navigation }: Props) => {
           <Text style={styles.btnSecondaryText}>CREAR CUENTA</Text>
         </TouchableOpacity>
 
-        {/* Botón invitado — muy importante según CU-04 */}
         <TouchableOpacity
           style={styles.btnGuest}
           onPress={() => navigation.navigate('Home')}
           activeOpacity={0.85}
         >
-          <Text style={styles.btnGuestText}>
-            📷  Escanear sin cuenta
-          </Text>
+          <Text style={styles.btnGuestText}>📷  Escanear sin cuenta</Text>
         </TouchableOpacity>
 
-        {/* Footer */}
         <Text style={styles.footer}>
-          Desarrollado por CPI Jaguars · TecNM Colima
+          CPI Jaguars · TecNM Instituto Tecnológico de Colima
         </Text>
 
-      </View>
+      </Animated.View>
     </View>
   );
 };
 
-// ── Componente pequeño para cada cultivo ──
 const CultivoChip = ({
-  emoji,
-  nombre,
+  emoji, nombre, color,
 }: {
-  emoji: string;
-  nombre: string;
+  emoji: string; nombre: string; color: string;
 }) => (
-  <View style={styles.chip}>
+  <View style={[styles.chip, { borderColor: color + '60' }]}>
     <Text style={styles.chipEmoji}>{emoji}</Text>
-    <Text style={styles.chipNombre}>{nombre}</Text>
+    <Text style={[styles.chipNombre, { color }]}>{nombre}</Text>
   </View>
 );
 
 export default WelcomeScreen;
 
-// ── Estilos ───────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex:            1,
     backgroundColor: COLORS.bgPrimary,
     justifyContent:  'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop:      SPACING.xxl,
+    paddingTop:      SPACING.xl,
     paddingBottom:   SPACING.xl,
+    overflow:        'hidden',
   },
 
-  // ── Sección superior
-  topSection: {
-    flex:       1,
-    alignItems: 'center',
+  // ── Círculos decorativos
+  circuloTop: {
+    position:        'absolute',
+    top:             -80,
+    right:           -80,
+    width:           240,
+    height:          240,
+    borderRadius:    120,
+    backgroundColor: COLORS.primaryBg,
+    opacity:         0.8,
+  },
+  circuloBottom: {
+    position:        'absolute',
+    bottom:          -60,
+    left:            -60,
+    width:           200,
+    height:          200,
+    borderRadius:    100,
+    backgroundColor: COLORS.acentoLight,
+    opacity:         0.6,
+  },
+
+  // ── Logo
+  logoSection: {
+    flex:           1,
+    alignItems:     'center',
     justifyContent: 'center',
-    gap:        SPACING.md,
+    gap:            SPACING.md,
   },
   logoContainer: {
-    width:           120,
-    height:          120,
+    width:           130,
+    height:          130,
     borderRadius:    RADIUS.full,
-    backgroundColor: COLORS.bgGreen,
-    borderWidth:     3,
-    borderColor:     COLORS.primary,
+    backgroundColor: COLORS.bgCard,
     alignItems:      'center',
     justifyContent:  'center',
+    borderWidth:     3,
+    borderColor:     COLORS.primary,
+    ...SHADOW.lg,
     marginBottom:    SPACING.sm,
   },
-  logoEmoji: {
-    fontSize: 60,
+  logoImage: {
+    width:  100,
+    height: 100,
   },
   appName: {
-    fontSize:   FONT_SIZE.xxxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color:      COLORS.primary,
+    fontSize:      FONT_SIZE.xxxl,
+    fontWeight:    FONT_WEIGHT.extrabold,
+    color:         COLORS.primary,
     letterSpacing: 1,
   },
   tagline: {
-    fontSize:  FONT_SIZE.lg,
-    color:     COLORS.textSecondary,
-    textAlign: 'center',
+    fontSize:   FONT_SIZE.lg,
+    color:      COLORS.textSecondary,
+    textAlign:  'center',
     lineHeight: 26,
   },
 
-  // ── Chips de cultivos
+  // ── Chips
   cultivosRow: {
     flexDirection: 'row',
     gap:           SPACING.sm,
     marginTop:     SPACING.md,
   },
   chip: {
-    alignItems:      'center',
-    backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.lg,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
+    alignItems:        'center',
+    backgroundColor:   COLORS.bgCard,
+    borderRadius:      RADIUS.lg,
+    borderWidth:       1.5,
     paddingVertical:   SPACING.sm,
     paddingHorizontal: SPACING.md,
-    gap:             4,
+    gap:               4,
+    ...SHADOW.sm,
   },
-  chipEmoji: {
-    fontSize: 28,
-  },
+  chipEmoji:  { fontSize: 28 },
   chipNombre: {
     fontSize:   FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.textSecondary,
+    fontWeight: FONT_WEIGHT.bold,
   },
 
-  // ── Sección inferior — botones
-  bottomSection: {
+  // ── Botones
+  botonesSection: {
     gap: SPACING.md,
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
-    borderRadius:    RADIUS.lg,
+    borderRadius:    RADIUS.xl,
     paddingVertical: SPACING.lg,
     alignItems:      'center',
+    ...SHADOW.lg,
   },
   btnPrimaryText: {
     fontSize:      FONT_SIZE.lg,
-    fontWeight:    FONT_WEIGHT.bold,
-    color:         COLORS.textWhite,
-    letterSpacing: 1.5,
+    fontWeight:    FONT_WEIGHT.extrabold,
+    color:         COLORS.white,
+    letterSpacing: 2,
   },
   btnSecondary: {
     backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.lg,
+    borderRadius:    RADIUS.xl,
     paddingVertical: SPACING.lg,
     alignItems:      'center',
     borderWidth:     2,
     borderColor:     COLORS.primary,
+    ...SHADOW.sm,
   },
   btnSecondaryText: {
     fontSize:      FONT_SIZE.lg,
-    fontWeight:    FONT_WEIGHT.bold,
+    fontWeight:    FONT_WEIGHT.extrabold,
     color:         COLORS.primary,
-    letterSpacing: 1.5,
+    letterSpacing: 2,
   },
   btnGuest: {
-    backgroundColor: COLORS.bgGreen,
-    borderRadius:    RADIUS.lg,
+    backgroundColor: COLORS.acentoLight,
+    borderRadius:    RADIUS.xl,
     paddingVertical: SPACING.md,
     alignItems:      'center',
-    borderWidth:     1,
-    borderColor:     COLORS.primaryLight,
+    borderWidth:     1.5,
+    borderColor:     COLORS.acento,
   },
   btnGuestText: {
     fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.primary,
+    fontWeight: FONT_WEIGHT.bold,
+    color:      COLORS.acentoDark,
   },
   footer: {
     fontSize:  FONT_SIZE.xs,
     color:     COLORS.textMuted,
     textAlign: 'center',
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
   },
 });

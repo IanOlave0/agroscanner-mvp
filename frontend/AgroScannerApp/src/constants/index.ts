@@ -1,40 +1,47 @@
 // ─────────────────────────────────────────
-// COLORES — Diseñados para uso en campo
-// Alto contraste, legibles bajo sol directo
+// COLORES — Paleta moderna para campo
+// Legible bajo sol, identidad CPI Jaguars
 // ─────────────────────────────────────────
 export const COLORS = {
-  // Fondos — claros para máxima legibilidad
-  bgPrimary:    '#F5F7F2',  // fondo principal, blanco hueso
-  bgCard:       '#FFFFFF',  // tarjetas y modales
-  bgGreen:      '#E8F5E9',  // fondo secciones verdes suaves
+  // Marca principal
+  primary:      '#1B6B2F',
+  primaryLight: '#4CAF50',
+  primaryDark:  '#0D4A1E',
+  primaryBg:    '#F1F8F1',
 
-  // Marca
-  primary:      '#2E7D32',  // verde campo oscuro — botones principales
-  primaryLight: '#66BB6A',  // verde lima — botones secundarios
-  primaryDark:  '#1B5E20',  // verde muy oscuro — headers
+  // Acento dorado — color del jaguar
+  acento:      '#F4A825',
+  acentoLight: '#FFF3D6',
+  acentoDark:  '#C17D0A',
 
-  // Alertas — muy visibles bajo sol
-  danger:       '#C62828',  // rojo fuerte — enfermedad crítica
-  dangerLight:  '#FFEBEE',  // fondo rojo suave
-  warning:      '#E65100',  // naranja fuerte — riesgo medio
-  warningLight: '#FFF3E0',  // fondo naranja suave
-  success:      '#2E7D32',  // verde — planta sana
-  successLight: '#E8F5E9',  // fondo verde suave
+  // Fondos
+  bgPrimary:   '#F5F7F2',
+  bgCard:      '#FFFFFF',
+  bgGreen:     '#EDF7EE',
+  bgGreenDark: '#D4EDDA',
 
-  // Texto — máximo contraste
-  textPrimary:   '#1A1A1A', // negro suave — títulos
-  textSecondary: '#424242', // gris oscuro — subtítulos
-  textMuted:     '#757575', // gris medio — textos pequeños
-  textWhite:     '#FFFFFF', // blanco — texto sobre fondos oscuros
+  // Alertas
+  danger:       '#C62828',
+  dangerLight:  '#FFEBEE',
+  warning:      '#E65100',
+  warningLight: '#FFF3E0',
+  success:      '#1B6B2F',
+  successLight: '#EDF7EE',
 
-  // Bordes y separadores
-  border:     '#E0E0E0',
-  divider:    '#F5F5F5',
-
-  // Semáforo de diagnóstico
-  semaforoRojo:     '#C62828',
+  // Semáforo
+  semaforoRojo:     '#D32F2F',
   semaforoAmarillo: '#F9A825',
   semaforoVerde:    '#2E7D32',
+
+  // Texto
+  textPrimary:   '#1A1A1A',
+  textSecondary: '#4A4A4A',
+  textMuted:     '#888888',
+  textWhite:     '#FFFFFF',
+
+  // Bordes
+  border:  '#E0E0E0',
+  divider: '#F0F0F0',
 
   // Extras
   white:       '#FFFFFF',
@@ -43,16 +50,43 @@ export const COLORS = {
 };
 
 // ─────────────────────────────────────────
-// TIPOGRAFÍA — Tamaños grandes para campo
+// SOMBRAS
+// ─────────────────────────────────────────
+export const SHADOW = {
+  sm: {
+    shadowColor:   '#000',
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius:  4,
+    elevation:     2,
+  },
+  md: {
+    shadowColor:   '#000',
+    shadowOffset:  { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius:  8,
+    elevation:     4,
+  },
+  lg: {
+    shadowColor:   '#1B6B2F',
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius:  12,
+    elevation:     8,
+  },
+};
+
+// ─────────────────────────────────────────
+// TIPOGRAFÍA
 // ─────────────────────────────────────────
 export const FONT_SIZE = {
-  xs:   12,  // notas pequeñas
-  sm:   14,  // texto secundario
-  md:   16,  // texto normal
-  lg:   18,  // subtítulos
-  xl:   22,  // títulos de sección
-  xxl:  28,  // títulos de pantalla
-  xxxl: 36,  // números grandes (% confianza)
+  xs:   12,
+  sm:   14,
+  md:   16,
+  lg:   18,
+  xl:   22,
+  xxl:  28,
+  xxxl: 36,
 };
 
 export const FONT_WEIGHT = {
@@ -64,7 +98,7 @@ export const FONT_WEIGHT = {
 };
 
 // ─────────────────────────────────────────
-// ESPACIADO — Botones grandes para campo
+// ESPACIADO
 // ─────────────────────────────────────────
 export const SPACING = {
   xs:  4,
@@ -80,52 +114,65 @@ export const RADIUS = {
   md:   12,
   lg:   16,
   xl:   24,
+  xxl:  32,
   full: 999,
 };
 
 // ─────────────────────────────────────────
-// CULTIVOS — Config central de cada planta
+// CULTIVOS
 // ─────────────────────────────────────────
 export const CULTIVOS = {
   limon: {
-    id:            1,
-    nombre:        'Limón Mexicano',
-    emoji:         '🍋',
-    enfermedad:    'HLB (Dragón Amarillo)',
-    color:         '#F9A825',
-    colorFondo:    '#FFFDE7',
-    descripcion:   'Detecta Huanglongbing en hojas de limón',
+    id:          1,
+    nombre:      'Limón Mexicano',
+    emoji:       '🍋',
+    enfermedad:  'HLB (Dragón Amarillo)',
+    color:       '#F9A825',
+    colorFondo:  '#FFFDE7',
+    colorBorde:  '#F4A825',
+    descripcion: 'Detecta Huanglongbing en hojas de limón',
   },
   papaya: {
-    id:            2,
-    nombre:        'Papaya',
-    emoji:         '🍈',
-    enfermedad:    'Araña Roja',
-    color:         '#E65100',
-    colorFondo:    '#FFF3E0',
-    descripcion:   'Detecta Tetranychus urticae en hojas de papaya',
+    id:          2,
+    nombre:      'Papaya',
+    emoji:       '🍈',
+    enfermedad:  'Araña Roja',
+    color:       '#E65100',
+    colorFondo:  '#FFF3E0',
+    colorBorde:  '#FF6D00',
+    descripcion: 'Detecta Tetranychus urticae en hojas de papaya',
   },
   platano: {
-    id:            3,
-    nombre:        'Plátano',
-    emoji:         '🍌',
-    enfermedad:    'Sigatoka Negra',
-    color:         '#558B2F',
-    colorFondo:    '#F1F8E9',
-    descripcion:   'Detecta Mycosphaerella fijiensis en hojas de plátano',
+    id:          3,
+    nombre:      'Plátano',
+    emoji:       '🍌',
+    enfermedad:  'Sigatoka Negra',
+    color:       '#2E7D32',
+    colorFondo:  '#E8F5E9',
+    colorBorde:  '#43A047',
+    descripcion: 'Detecta Mycosphaerella fijiensis en hojas de plátano',
   },
 };
 
 // ─────────────────────────────────────────
-// API — URL del backend FastAPI
+// API
 // ─────────────────────────────────────────
 export const API_URL = 'http://10.0.2.2:8000';
+// Producción Railway:
+// export const API_URL = 'https://agroscanner.up.railway.app';
 
 // ─────────────────────────────────────────
-// STORAGE KEYS — Nombres para AsyncStorage
+// STORAGE KEYS
 // ─────────────────────────────────────────
 export const STORAGE = {
-  TOKEN:    'agroscanner_token',
-  USUARIO:  'agroscanner_usuario',
-  OFFLINE:  'agroscanner_offline_queue',
+  TOKEN:   'agroscanner_token',
+  USUARIO: 'agroscanner_usuario',
+  OFFLINE: 'agroscanner_offline_queue',
+};
+
+// ─────────────────────────────────────────
+// ASSETS — Imágenes de la app
+// ─────────────────────────────────────────
+export const IMAGES = {
+  logo: require('../assets/jaguar.png'),
 };

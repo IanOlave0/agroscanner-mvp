@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Alert, ActivityIndicator, Image,
+  StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -17,7 +17,7 @@ const CamaraScreen = ({ navigation, route }: Props) => {
   const { cultivoId, cultivoNombre } = route.params;
 
   const [analizando,   setAnalizando]   = useState(false);
-  const [imagenCapturada, setImagenCapturada] = useState<string | null>(null);
+
 
   // ── Simular captura de foto ───────────
   // Aquí irá react-native-camera en producción
@@ -26,7 +26,7 @@ const CamaraScreen = ({ navigation, route }: Props) => {
     setAnalizando(true);
 
     // Simular tiempo de análisis de la IA (< 3 seg según RNF06)
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
 
     // Resultado simulado de la IA
     // En producción vendrá del modelo TFLite

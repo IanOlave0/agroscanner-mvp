@@ -173,6 +173,6 @@ export const STORAGE = {
 // ─────────────────────────────────────────
 // ASSETS — Imágenes de la app
 // ─────────────────────────────────────────
-export const IMAGES = {
-  logo: require('../assets/jaguar.png'),
-};
+//export const IMAGES = {
+ // logo: require('../../assets/jaguar.png'),
+//};

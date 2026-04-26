@@ -65,10 +65,10 @@ const WelcomeScreen = ({ navigation }: Props) => {
         {/* Logo del jaguar */}
         <View style={styles.logoContainer}>
           <Image
-            source={IMAGES.logo}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+  source={require('../../../assets/jaguar.png')}
+  style={styles.logoImage}
+  resizeMode="contain"
+/>
         </View>
 
         <Text style={styles.appName}>AgroScanner</Text>

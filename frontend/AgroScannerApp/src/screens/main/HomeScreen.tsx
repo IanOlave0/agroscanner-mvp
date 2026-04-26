@@ -7,15 +7,21 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParams } from '../../types';
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, CULTIVOS } from '../../constants';
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParams, 'Home'>;
+type TabParams = {
+  Home: undefined;
+  Scanner: undefined;
+  Historial: undefined;
+  Mapa: undefined;
+  Perfil: undefined;
 };
 
-const HomeScreen = ({ navigation }: Props) => {
+const HomeScreen = () => {
+  const navigation = useNavigation<BottomTabNavigationProp<TabParams>>();
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
@@ -40,7 +46,6 @@ const HomeScreen = ({ navigation }: Props) => {
         </View>
 
         {/* ── Banner offline ── */}
-        {/* Avisa al usuario que puede trabajar sin internet */}
         <View style={styles.bannerOffline}>
           <Text style={styles.bannerEmoji}>📡</Text>
           <View style={styles.bannerTexto}>
@@ -55,7 +60,6 @@ const HomeScreen = ({ navigation }: Props) => {
         <Text style={styles.seccionTitulo}>Selecciona tu cultivo</Text>
 
         {/* ── Tarjetas de cultivos ── */}
-        {/* Cada tarjeta lleva a la cámara con el cultivo seleccionado */}
         <View style={styles.cultivosContainer}>
 
           <TarjetaCultivo
@@ -64,10 +68,7 @@ const HomeScreen = ({ navigation }: Props) => {
             enfermedad={CULTIVOS.limon.enfermedad}
             color={CULTIVOS.limon.color}
             colorFondo={CULTIVOS.limon.colorFondo}
-            onPress={() => navigation.navigate('Camara', {
-              cultivoId:     CULTIVOS.limon.id,
-              cultivoNombre: CULTIVOS.limon.nombre,
-            })}
+            onPress={() => navigation.navigate('Scanner')}
           />
 
           <TarjetaCultivo
@@ -76,10 +77,7 @@ const HomeScreen = ({ navigation }: Props) => {
             enfermedad={CULTIVOS.papaya.enfermedad}
             color={CULTIVOS.papaya.color}
             colorFondo={CULTIVOS.papaya.colorFondo}
-            onPress={() => navigation.navigate('Camara', {
-              cultivoId:     CULTIVOS.papaya.id,
-              cultivoNombre: CULTIVOS.papaya.nombre,
-            })}
+            onPress={() => navigation.navigate('Scanner')}
           />
 
           <TarjetaCultivo
@@ -88,10 +86,7 @@ const HomeScreen = ({ navigation }: Props) => {
             enfermedad={CULTIVOS.platano.enfermedad}
             color={CULTIVOS.platano.color}
             colorFondo={CULTIVOS.platano.colorFondo}
-            onPress={() => navigation.navigate('Camara', {
-              cultivoId:     CULTIVOS.platano.id,
-              cultivoNombre: CULTIVOS.platano.nombre,
-            })}
+            onPress={() => navigation.navigate('Scanner')}
           />
 
         </View>
@@ -135,19 +130,10 @@ const HomeScreen = ({ navigation }: Props) => {
 
 // ── Tarjeta de cultivo ────────────────────
 const TarjetaCultivo = ({
-  emoji,
-  nombre,
-  enfermedad,
-  color,
-  colorFondo,
-  onPress,
+  emoji, nombre, enfermedad, color, colorFondo, onPress,
 }: {
-  emoji:      string;
-  nombre:     string;
-  enfermedad: string;
-  color:      string;
-  colorFondo: string;
-  onPress:    () => void;
+  emoji: string; nombre: string; enfermedad: string;
+  color: string; colorFondo: string; onPress: () => void;
 }) => (
   <TouchableOpacity
     style={[styles.tarjeta, { borderLeftColor: color, borderLeftWidth: 5 }]}
@@ -167,15 +153,9 @@ const TarjetaCultivo = ({
 
 // ── Tarjeta de estadística ────────────────
 const StatCard = ({
-  emoji,
-  numero,
-  label,
-  color,
+  emoji, numero, label, color,
 }: {
-  emoji:  string;
-  numero: string;
-  label:  string;
-  color:  string;
+  emoji: string; numero: string; label: string; color: string;
 }) => (
   <View style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]}>
     <Text style={styles.statEmoji}>{emoji}</Text>
@@ -197,8 +177,6 @@ const styles = StyleSheet.create({
     paddingBottom:     SPACING.xxl,
     gap:               SPACING.md,
   },
-
-  // ── Header
   header: {
     flexDirection:  'row',
     justifyContent: 'space-between',
@@ -226,11 +204,7 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
   },
-  perfilEmoji: {
-    fontSize: 22,
-  },
-
-  // ── Banner offline
+  perfilEmoji: { fontSize: 22 },
   bannerOffline: {
     flexDirection:   'row',
     alignItems:      'center',
@@ -241,12 +215,8 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     COLORS.primaryLight,
   },
-  bannerEmoji: {
-    fontSize: 28,
-  },
-  bannerTexto: {
-    flex: 1,
-  },
+  bannerEmoji:    { fontSize: 28 },
+  bannerTexto:    { flex: 1 },
   bannerTitulo: {
     fontSize:   FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
@@ -256,19 +226,13 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color:    COLORS.textSecondary,
   },
-
-  // ── Sección
   seccionTitulo: {
     fontSize:   FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
     color:      COLORS.textPrimary,
     marginTop:  SPACING.sm,
   },
-
-  // ── Tarjetas cultivos
-  cultivosContainer: {
-    gap: SPACING.sm,
-  },
+  cultivosContainer: { gap: SPACING.sm },
   tarjeta: {
     flexDirection:   'row',
     alignItems:      'center',
@@ -276,10 +240,6 @@ const styles = StyleSheet.create({
     borderRadius:    RADIUS.lg,
     padding:         SPACING.md,
     gap:             SPACING.md,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.06,
-    shadowRadius:    4,
     elevation:       2,
   },
   tarjetaEmojiBg: {
@@ -289,13 +249,8 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  tarjetaEmoji: {
-    fontSize: 36,
-  },
-  tarjetaInfo: {
-    flex: 1,
-    gap:  4,
-  },
+  tarjetaEmoji:  { fontSize: 36 },
+  tarjetaInfo:   { flex: 1, gap: 4 },
   tarjetaNombre: {
     fontSize:   FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
@@ -310,8 +265,6 @@ const styles = StyleSheet.create({
     color:      COLORS.textMuted,
     fontWeight: FONT_WEIGHT.bold,
   },
-
-  // ── Stats
   statsRow: {
     flexDirection: 'row',
     gap:           SPACING.sm,
@@ -323,15 +276,9 @@ const styles = StyleSheet.create({
     padding:         SPACING.md,
     alignItems:      'center',
     gap:             4,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    3,
     elevation:       1,
   },
-  statEmoji: {
-    fontSize: 22,
-  },
+  statEmoji:  { fontSize: 22 },
   statNumero: {
     fontSize:   FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.extrabold,
@@ -340,8 +287,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color:    COLORS.textMuted,
   },
-
-  // ── Acceso rápido
   accesoRow: {
     flexDirection: 'row',
     gap:           SPACING.sm,
@@ -356,9 +301,7 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     COLORS.border,
   },
-  accesoEmoji: {
-    fontSize: 32,
-  },
+  accesoEmoji: { fontSize: 32 },
   accesoLabel: {
     fontSize:   FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,

@@ -64,7 +64,7 @@ const RegistroScreen = ({ navigation }: Props) => {
         {/* Logo */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image source={IMAGES.logo} style={styles.logoImage} resizeMode="contain" />
+            <Image source={require('../../../assets/jaguar.png')} style={styles.logoImage} resizeMode="contain" />
           </View>
           <Text style={styles.title}>CREAR NUEVA CUENTA</Text>
           <Text style={styles.subtitle}>

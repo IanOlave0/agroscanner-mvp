@@ -166,3 +166,11 @@ frontend/AgroScannerApp/node_modules/
 
 # VS Code
 .vscode/settings.json
+.aider*
+
+# Documentación para ia
+AGENTS.md
+CONTEXTO_PROYECTO.md
+
+# Package-lock.json
+frontend/AgroScannerApp/package-lock.json

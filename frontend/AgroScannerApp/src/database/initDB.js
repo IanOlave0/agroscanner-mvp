@@ -1,9 +1,25 @@
+/**
+ * Módulo de inicialización de la base de datos SQLite
+ * 
+ * Encargado de:
+ * - Abrir/conectar a la base de datos SQLite
+ * - Crear todas las tablas del sistema
+ * - Habilitar integridad referencial con foreign keys
+ * 
+ * Arquitectura: Offline-First (sin necesidad de internet)
+ */
 import * as SQLite from "expo-sqlite";
 
 const DATABASE_NAME = "agroscanner.db";
 
 let db = null;
 
+/**
+ * Abre la conexión a la base de datos SQLite
+ * Utiliza el patrón Singleton para evitar múltiples conexiones
+ * 
+ * @returns {Promise<SQLite.SQLiteDatabase>} Instancia de la base de datos
+ */
 export async function openDatabase() {
   if (db) return db;
   db = await SQLite.openDatabaseAsync(DATABASE_NAME);
@@ -11,6 +27,21 @@ export async function openDatabase() {
   return db;
 }
 
+/**
+ * Inicializa la base de datos creando todas las tablas necesarias
+ * Se ejecuta una sola vez al iniciar la aplicación
+ * 
+ * TABLAS CREADAS:
+ * - usuarios: Sesión del agricultor (token JWT, zona agrícola)
+ * - ubicaciones: Terrenos del agricultor (GPS, metros cuadrados)
+ * - cultivos: Catálogo de cultivos (Limón, Papaya, Plátano)
+ * - enfermedades: Catálogo de enfermedades (HLB, Shigatoka, Araña Roja)
+ * - cultivo_enfermedad: RelaciónMany-a-Muchos + tratamiento específico
+ * - detecciones: Historial de análisis de cultivos
+ * 
+ * INTEGRIDAD REFERENCIAL:
+ * - foreign_keys = ON (obligatorio para relationalidad)
+ */
 export async function initDatabase() {
   const database = await openDatabase();
 
@@ -90,6 +121,13 @@ export async function initDatabase() {
   console.log("[AgroScanner DB] Base de datos inicializada correctamente");
 }
 
+/**
+ * Obtiene la instancia activa de la base de datos
+ * Lanza error si no se ha inicializado previamente
+ * 
+ * @returns {SQLite.SQLiteDatabase} Instancia de la base de datos
+ * @throws {Error} Si la base de datos no ha sido inicializada
+ */
 export function getDatabase() {
   if (!db) {
     throw new Error("[AgroScanner DB] Database no inicializada. Llama a initDatabase() primero.");

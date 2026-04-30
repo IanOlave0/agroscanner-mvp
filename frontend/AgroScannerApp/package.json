@@ -20,14 +20,18 @@
     "@react-navigation/bottom-tabs": "^7.15.10",
     "@react-navigation/native": "^7.2.2",
     "@react-navigation/native-stack": "^7.14.12",
+    "@react-navigation/stack": "^7.8.11",
+    "@turf/turf": "^7.3.5",
     "@types/react-native": "^0.72.8",
     "expo": "54.0.6",
     "expo-camera": "~17.0.10",
     "expo-location": "~19.0.8",
+    "expo-sqlite": "~16.0.10",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-maps": "1.20.1",
     "react-native-safe-area-context": "~5.6.2",
-    "react-native-screens": "~4.16.0"
+    "react-native-screens": "~4.16.0",
+    "uuid": "^14.0.0"
   }
 }

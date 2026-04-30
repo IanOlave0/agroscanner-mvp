@@ -1,0 +1,499 @@
+/**
+ * Pantalla de Colocación de Pin en Parcela
+ * 
+ * Flujo:
+ * 1. Viene de ResultadoScreen tras análisis de IA
+ * 2. Selecciona parcela de una lista
+ * 3. Muestra mapa/canvas de la parcela con su polígono
+ * 4. Usuario toca para colocar pin en planta enferma
+ * 5. Verifica que pin esté dentro del polígono
+ * 6. Guarda detección vinculada a parcela + coordenadas pin
+ * 
+ * PANTALLA CRÍTICA: Vincula detección → parcela → ubicación exacta
+ */
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Dimensions, 
+  Alert,
+  ScrollView,
+  FlatList
+} from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParams, ResultadoIA, Parcela, Usuario } from '../../types';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../../constants';
+import { getParcelasByUsuario, getUsuarioActivo, insertDeteccion } from '../../database/queries';
+import { parseGeometria, puntoEnPoligono, getCentroide } from '../../utils/geometria';
+import { v4 as uuidv4 } from 'uuid';
+
+type PinPlacementNavigationProp = NativeStackNavigationProp<RootStackParams, 'PinPlacement'>;
+type PinPlacementRouteProp = RouteProp<RootStackParams, 'PinPlacement'>;
+
+type Props = {
+  navigation: PinPlacementNavigationProp;
+  route: PinPlacementRouteProp;
+};
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 40, SCREEN_HEIGHT * 0.45);
+
+/**
+ * Posición del pin en el canvas
+ */
+interface PinPosition {
+  x: number;
+  y: number;
+  lat: number;
+  lng: number;
+}
+
+export default function PinPlacementScreen({ navigation, route }: Props) {
+  const { resultado, imagenUri, cultivoId } = route.params;
+  const [parcelas, setParcelas] = useState<Parcela[]>([]);
+  const [parcelaSeleccionada, setParcelaSeleccionada] = useState<Parcela | null>(null);
+  const [pin, setPin] = useState<PinPosition | null>(null);
+  const [loading, setLoading] = useState(true);
+  const canvasRef = useRef<View>(null);
+
+  useEffect(() => {
+    cargarParcelas();
+  }, []);
+
+  /**
+   * Carga las parcelas del usuario para seleccionar
+   */
+  const cargarParcelas = async () => {
+    try {
+      const usuario = await getUsuarioActivo() as Usuario | null;
+      if (!usuario) {
+        Alert.alert(
+          'Sesión requerida',
+          'Para guardar detecciones, debes registrarte. ¿Deseas hacerlo ahora?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Registrarme', onPress: () => navigation.navigate('Welcome') }
+          ]
+        );
+        return;
+      }
+
+      const lista = await getParcelasByUsuario(usuario.id);
+      setParcelas(lista);
+      
+      if (lista.length === 0) {
+        Alert.alert(
+          'Sin parcelas',
+          'Debes registrar al menos una parcela antes de hacer detecciones.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('[PinPlacement] Error cargando parcelas:', error);
+      Alert.alert('Error', 'No se pudieron cargar las parcelas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Selecciona parcela y muestra su polígono
+   */
+  const handleSeleccionarParcela = (p: Parcela) => {
+    setParcelaSeleccionada(p);
+    setPin(null); // Reset pin al cambiar parcela
+  };
+
+  /**
+   * Maneja toque en canvas para colocar pin
+   */
+  const handleCanvasTap = (event: any) => {
+    if (!parcelaSeleccionada) return;
+
+    const { locationX, locationY } = event.nativeEvent;
+    
+    // Obtener vértices de la parcela
+    const vertices = parseGeometria(parcelaSeleccionada.geometria);
+    
+    // Calcular centroide para referencia
+    const centroide = getCentroide(vertices);
+    
+    // Convertir posición en canvas a coordenadas (aproximación)
+    // En producción, esto usaría geolocalización real + posición relativa
+    const lat = centroide.lat + (locationY - CANVAS_SIZE / 2) * 0.000001;
+    const lng = centroide.lng + (locationX - CANVAS_SIZE / 2) * 0.000001;
+
+    const newPin: PinPosition = {
+      x: locationX,
+      y: locationY,
+      lat,
+      lng,
+    };
+
+    // Verificar que pin está dentro del polígono
+    const dentro = puntoEnPoligono(vertices, { lat, lng });
+    if (!dentro) {
+      Alert.alert('Pin fuera de parcela', 'El pin debe estar dentro del polígono de la parcela');
+      return;
+    }
+
+    setPin(newPin);
+  };
+
+  /**
+   * Guarda la detección con pin y parcela
+   */
+  const handleGuardar = async () => {
+    if (!parcelaSeleccionada) {
+      Alert.alert('Error', 'Selecciona una parcela');
+      return;
+    }
+
+    if (!pin) {
+      Alert.alert('Error', 'Coloca el pin en la planta enferma');
+      return;
+    }
+
+    try {
+      const usuario = await getUsuarioActivo() as Usuario | null;
+      if (!usuario) {
+        Alert.alert('Sesión requerida', 'Debes iniciar sesión');
+        return;
+      }
+
+      // Determinar enfermedadId basado en resultado
+      // En producción, esto se obtendría de la BD o IA
+      const enfermedadId = resultado.resultado_positivo ? null : null; // TODO: Mapear correctamente
+      
+      // Generar ID único para detección
+      const id = uuidv4();
+      
+      await insertDeteccion(
+        id,
+        usuario.id,
+        parcelaSeleccionada.id,
+        cultivoId,
+        enfermedadId,
+        imagenUri,
+        resultado.confianza * 100, // Convertir 0-1 a 0-100
+        null, // latitud GPS (metadata)
+        null, // longitud GPS (metadata)
+        pin.lat, // pin_latitud
+        pin.lng  // pin_longitud
+      );
+
+      Alert.alert(
+        'Éxito',
+        'Detección guardada correctamente',
+        [{ text: 'OK', onPress: () => navigation.navigate('Historial') }]
+      );
+    } catch (error) {
+      console.error('[PinPlacement] Error guardando detección:', error);
+      Alert.alert('Error', 'No se pudo guardar la detección');
+    }
+  };
+
+  /**
+   * Renderiza el polígono de la parcela
+   */
+  const renderParcela = () => {
+    if (!parcelaSeleccionada) return null;
+
+    const vertices = parseGeometria(parcelaSeleccionada.geometria);
+    const centroide = getCentroide(vertices);
+
+    // Convertir vértices a posición en canvas (normalizado)
+    const scaled = vertices.map((v) => ({
+      x: (v.lng - centroide.lng) * 50000 + CANVAS_SIZE / 2,
+      y: (v.lat - centroide.lat) * 50000 + CANVAS_SIZE / 2,
+    }));
+
+    return (
+      <View style={styles.canvasContainer}>
+        <Text style={styles.canvasTitle}>
+          {parcelaSeleccionada.alias}
+        </Text>
+        
+        <View 
+          style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
+          ref={canvasRef}
+          onTouchEnd={handleCanvasTap}
+        >
+          {/* Polígono */}
+          {scaled.map((vertex, i) => {
+            if (i === 0) return null;
+            const prev = scaled[i - 1];
+            return (
+              <View
+                key={`line-${i}`}
+                style={[
+                  styles.line,
+                  {
+                    left: Math.min(vertex.x, prev.x),
+                    top: Math.min(vertex.y, prev.y),
+                    width: Math.abs(vertex.x - prev.x),
+                    height: Math.abs(vertex.y - prev.y),
+                  },
+                ]}
+              />
+            );
+          })}
+
+          {/* Pin */}
+          {pin && (
+            <View
+              style={[
+                styles.pin,
+                { left: pin.x - 15, top: pin.y - 30 },
+              ]}
+            >
+              <Text style={styles.pinIcon}>📍</Text>
+            </View>
+          )}
+
+          {/* Instrucción */}
+          {!pin && (
+            <Text style={styles.canvasHint}>
+              Toca para colocar pin
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Cargando parcelas...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backButton}>← Volver</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Ubicar Planta Enferma</Text>
+      </View>
+
+      {/* Resultado IA resumen */}
+      <View style={styles.resultadoCard}>
+        <Text style={styles.resultadoTitle}>Resultado del análisis</Text>
+        <Text style={styles.resultadoText}>
+          Enfermedad: {resultado.enfermedad}
+        </Text>
+        <Text style={styles.resultadoText}>
+          Confianza: {(resultado.confianza * 100).toFixed(1)}%
+        </Text>
+      </View>
+
+      {/* Selección de parcela */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>1. Selecciona la parcela</Text>
+        
+        {parcelas.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No tienes parcelas registradas
+          </Text>
+        ) : (
+          <FlatList
+            data={parcelas}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.parcelaCard,
+                  parcelaSeleccionada?.id === item.id && styles.parcelaSelected,
+                ]}
+                onPress={() => handleSeleccionarParcela(item)}
+              >
+                <Text style={styles.parcelaName}>{item.alias}</Text>
+                <Text style={styles.parcelaArea}>
+                  {item.metros_cuadrados.toFixed(0)} m²
+                </Text>
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.parcelaList}
+          />
+        )}
+      </View>
+
+      {/* Canvas para colocar pin */}
+      {parcelaSeleccionada && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>2. Coloca el pin en la planta</Text>
+          {renderParcela()}
+        </View>
+      )}
+
+      {/* Botón guardar */}
+      <View style={styles.buttonsSection}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.primaryButton,
+            (!parcelaSeleccionada || !pin) && styles.disabledButton,
+          ]}
+          onPress={handleGuardar}
+          disabled={!parcelaSeleccionada || !pin}
+        >
+          <Text style={styles.primaryButtonText}>
+            Guardar Detección
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.bgPrimary,
+  },
+  header: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  backButton: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primary,
+    marginBottom: SPACING.xs,
+  },
+  title: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+  },
+  loadingText: {
+    flex: 1,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.textSecondary,
+  },
+  resultadoCard: {
+    backgroundColor: COLORS.white,
+    margin: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  resultadoTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  resultadoText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+  },
+  section: {
+    padding: SPACING.md,
+  },
+  sectionTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  emptyText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    padding: SPACING.xl,
+  },
+  parcelaList: {
+    gap: SPACING.sm,
+  },
+  parcelaCard: {
+    backgroundColor: COLORS.white,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    width: 150,
+  },
+  parcelaSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  parcelaName: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+  parcelaArea: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+  },
+  canvasContainer: {
+    alignItems: 'center',
+  },
+  canvasTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  canvas: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    position: 'relative',
+  },
+  line: {
+    position: 'absolute',
+    backgroundColor: COLORS.primary + '60',
+    height: 2,
+  },
+  pin: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  pinIcon: {
+    fontSize: 30,
+  },
+  canvasHint: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -60 }, { translateY: -12 }],
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZE.sm,
+  },
+  buttonsSection: {
+    padding: SPACING.lg,
+  },
+  button: {
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+  },
+  primaryButton: {
+    backgroundColor: COLORS.primary,
+  },
+  primaryButtonText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+  },
+  disabledButton: {
+    backgroundColor: COLORS.textMuted,
+  },
+});

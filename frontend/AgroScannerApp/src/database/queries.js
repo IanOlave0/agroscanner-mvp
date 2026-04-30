@@ -7,7 +7,7 @@
  * 
  * PATRONES DE DISEÑO:
  * - Todas las funciones son asíncronas (async/await)
- * - Manejo de errores contry/catch
+ * - Manejo de errores con try/catch
  * - Logs etiquetados por módulo [AgroScanner DB]
  * - Foreign keys activos para integridad referencial
  */
@@ -96,7 +96,7 @@ export async function updateUsuario(id, zonaAgricola, sincronizado = 0) {
 }
 
 /**
- * Obtiene el usuario aktualmente logeado (único registro en tabla usuarios)
+ * Obtiene el usuario actualmente logeado (único registro en tabla usuarios)
  * Se usa para verificar sesión activa en inicio de app
  * 
  * @returns {Promise<Object|null>} Objeto del usuario o null si no hay sesión
@@ -131,7 +131,7 @@ export async function updateToken(token) {
 /**
  * Cierra la sesión del usuario
  * Elimina el registro de la tabla usuarios (logout)
- * No elimina detecciones/ubicaciones del historial
+ * No elimina detecciones/parcelas del historial
  */
 export async function logoutUsuario() {
   const db = getDatabase();
@@ -166,7 +166,7 @@ function decodeJWT(token) {
 }
 
 /**
- * Verifica si el token JWT stored es válido para acceso offline
+ * Verifica si el token JWT almacenado es válido para acceso offline
  * Lee el payload del JWT sin consultar al backend
  * 
  * FLUJO:
@@ -208,101 +208,125 @@ export async function verifyTokenOffline() {
 }
 
 // ============================================================================
-// UBICACIONES - Gestión de terrenos del agricultor
+// PARCELAS - Gestión de terrenos del agricultor (polígonos manuales)
 // ============================================================================
 
 /**
- * Inserta una nueva ubicación (terreno)
+ * Inserta una nueva parcela con geometría en formato JSON
+ * La parcela representa un terreno agrícola definido por un polígono
  * 
- * @param {string} id - UUID único de la ubicación
+ * @param {string} id - UUID único de la parcela
  * @param {string} alias - Nombre identificador del terreno
- * @param {string|null} direccion - Dirección física (opcional)
- * @param {number|null} metrosCuadrados - Área del terreno (opcional)
- * @param {number|null} latitud - Coordenada GPS latitud
- * @param {number|null} longitud - Coordenada GPS longitud
+ * @param {string} geometria - JSON array de coordenadas: [{"lat": x, "lng": y}, ...]
+ * @param {number} metrosCuadrados - Área calculada (m²)
+ * @param {string} areaTimestamp - Fecha del cálculo de área (ISO 8601)
  * @param {string} usuarioId - UUID del propietario
  */
-export async function insertUbicacion(id, alias, direccion, metrosCuadrados, latitud, longitud, usuarioId) {
+export async function insertParcela(id, alias, geometria, metrosCuadrados, areaTimestamp, usuarioId) {
   const db = getDatabase();
   try {
     await db.runAsync(
-      "INSERT INTO ubicaciones (id, alias, direccion, metros_cuadrados, latitud, longitud, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [id, alias, direccion, metrosCuadrados, latitud, longitud, usuarioId]
+      "INSERT INTO parcelas (id, alias, geometria, metros_cuadrados, area_timestamp, usuario_id) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, alias, geometria, metrosCuadrados, areaTimestamp, usuarioId]
     );
-    console.log("[AgroScanner DB] Ubicacion insertada:", id);
+    console.log("[AgroScanner DB] Parcela insertada:", id);
   } catch (error) {
-    console.error("[AgroScanner DB] Error inserting ubicacion:", error);
+    console.error("[AgroScanner DB] Error inserting parcela:", error);
     throw error;
   }
 }
 
 /**
- * Obtiene una ubicación por su ID
+ * Obtiene una parcela por su ID
  * 
- * @param {string} id - UUID de la ubicación
+ * @param {string} id - UUID de la parcela
  * @returns {Promise<Object|null>}
  */
-export async function getUbicacionById(id) {
+export async function getParcelaById(id) {
   const db = getDatabase();
   try {
-    return await db.getFirstAsync("SELECT * FROM ubicaciones WHERE id = ?", [id]);
+    return await db.getFirstAsync("SELECT * FROM parcelas WHERE id = ?", [id]);
   } catch (error) {
-    console.error("[AgroScanner DB] Error getting ubicacion:", error);
+    console.error("[AgroScanner DB] Error getting parcela:", error);
     throw error;
   }
 }
 
 /**
- * Obtiene todas las ubicaciones de un usuario
+ * Obtiene todas las parcelas de un usuario
+ * Ordenadas por fecha de creación
  * 
  * @param {string} usuarioId - UUID del usuario
- * @returns {Promise<Array>} Array de ubicaciones
+ * @returns {Promise<Array>} Array de parcelas
  */
-export async function getUbicacionesByUsuario(usuarioId) {
+export async function getParcelasByUsuario(usuarioId) {
   const db = getDatabase();
   try {
-    return await db.getAllAsync("SELECT * FROM ubicaciones WHERE usuario_id = ?", [usuarioId]);
+    return await db.getAllAsync("SELECT * FROM parcelas WHERE usuario_id = ? ORDER BY fecha_creacion", [usuarioId]);
   } catch (error) {
-    console.error("[AgroScanner DB] Error getting ubicaciones:", error);
+    console.error("[AgroScanner DB] Error getting parcelas:", error);
     throw error;
   }
 }
 
 /**
- * Actualiza una ubicación
+ * Actualiza la geometría de una parcela (redibujo)
+ * Recalcula el área y actualiza el timestamp
  * 
- * @param {string} id - UUID de la ubicación
- * @param {string} alias - Nuevo alias
- * @param {string|null} direccion - Nueva dirección
- * @param {number|null} metrosCuadrados - Nuevo área
+ * @param {string} id - UUID de la parcela
+ * @param {string} geometria - Nuevo JSON de coordenadas
+ * @param {number} metrosCuadrados - Nueva área calculada
+ * @param {string} areaTimestamp - Nuevo timestamp de cálculo
  * @param {number} sincronizado - 0=pendiente, 1=sincronizado
  */
-export async function updateUbicacion(id, alias, direccion, metrosCuadrados, sincronizado = 0) {
+export async function updateParcelaGeometria(id, geometria, metrosCuadrados, areaTimestamp, sincronizado = 0) {
   const db = getDatabase();
   try {
     await db.runAsync(
-      "UPDATE ubicaciones SET alias = ?, direccion = ?, metros_cuadrados = ?, sincronizado = ? WHERE id = ?",
-      [alias, direccion, metrosCuadrados, sincronizado, id]
+      "UPDATE parcelas SET geometria = ?, metros_cuadrados = ?, area_timestamp = ?, sincronizado = ? WHERE id = ?",
+      [geometria, metrosCuadrados, areaTimestamp, sincronizado, id]
     );
-    console.log("[AgroScanner DB] Ubicacion actualizada:", id);
+    console.log("[AgroScanner DB] Parcela actualizada:", id);
   } catch (error) {
-    console.error("[AgroScanner DB] Error updating ubicacion:", error);
+    console.error("[AgroScanner DB] Error updating parcela:", error);
     throw error;
   }
 }
 
 /**
- * Elimina una ubicación
+ * Actualiza el alias de una parcela
  * 
- * @param {string} id - UUID de la ubicación
+ * @param {string} id - UUID de la parcela
+ * @param {string} alias - Nuevo nombre
+ * @param {number} sincronizado - 0=pendiente, 1=sincronizado
  */
-export async function deleteUbicacion(id) {
+export async function updateParcelaAlias(id, alias, sincronizado = 0) {
   const db = getDatabase();
   try {
-    await db.runAsync("DELETE FROM ubicaciones WHERE id = ?", [id]);
-    console.log("[AgroScanner DB] Ubicacion eliminada:", id);
+    await db.runAsync(
+      "UPDATE parcelas SET alias = ?, sincronizado = ? WHERE id = ?",
+      [alias, sincronizado, id]
+    );
+    console.log("[AgroScanner DB] Alias de parcela actualizado:", id);
   } catch (error) {
-    console.error("[AgroScanner DB] Error deleting ubicacion:", error);
+    console.error("[AgroScanner DB] Error updating parcela alias:", error);
+    throw error;
+  }
+}
+
+/**
+ * Elimina una parcela
+ * ADVERTENCIA: Esto también eliminará todas las detecciones vinculadas (CASCADE)
+ * 
+ * @param {string} id - UUID de la parcela
+ */
+export async function deleteParcela(id) {
+  const db = getDatabase();
+  try {
+    await db.runAsync("DELETE FROM parcelas WHERE id = ?", [id]);
+    console.log("[AgroScanner DB] Parcela eliminada:", id);
+  } catch (error) {
+    console.error("[AgroScanner DB] Error deleting parcela:", error);
     throw error;
   }
 }
@@ -427,37 +451,42 @@ export async function getTratamiento(cultivoId, enfermedadId) {
 
 /**
  * Inserta una nueva detección (resultado de análisis de IA)
+ * Vinculada obligatoriamente a una parcela con pin manual
  * Se llama después de procesar una imagen con el modelo
  * 
  * @param {string} id - UUID único de la detección
  * @param {string} usuarioId - UUID del usuario que realizó análisis
- * @param {string|null} ubicacionId - UUID de la ubicación (opcional)
- * @param {number} cultivoId - ID del cultivo analisado
+ * @param {string} parcelaId - UUID de la parcela donde se encontró la enfermedad (obligatorio)
+ * @param {number} cultivoId - ID del cultivo analizado
  * @param {number|null} enfermedadId - ID de enfermedad detectada (null si está sano)
  * @param {string} imagenUri - Ruta local de la imagen capturada
- * @param {number} nivelConfianza - Porcentaje de précision de la IA (0-100)
- * @param {number|null} latitud - GPS latitud al momento del análisis
- * @param {number|null} longitud - GPS longitud al momento del análisis
+ * @param {number} nivelConfianza - Porcentaje de precisión de la IA (0-100)
+ * @param {number|null} latitud - GPS latitud al momento del análisis (metadata)
+ * @param {number|null} longitud - GPS longitud al momento del análisis (metadata)
+ * @param {number} pinLatitud - Latitud del pin manual en la parcela
+ * @param {number} pinLongitud - Longitud del pin manual en la parcela
  */
 export async function insertDeteccion(
   id,
   usuarioId,
-  ubicacionId,
+  parcelaId,
   cultivoId,
   enfermedadId,
   imagenUri,
   nivelConfianza,
   latitud,
-  longitud
+  longitud,
+  pinLatitud,
+  pinLongitud
 ) {
   const db = getDatabase();
   try {
     await db.runAsync(
-`INSERT INTO detecciones (id, usuario_id, ubicacion_id, cultivo_id, enfermedad_id, imagen_uri, nivel_confianza, latitud, longitud)
+      `INSERT INTO detecciones (id, usuario_id, parcela_id, cultivo_id, enfermedad_id, imagen_uri, nivel_confianza, latitud, longitud, pin_latitud, pin_longitud)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, usuarioId, ubicacionId, cultivoId, enfermedadId !== null ? enfermedadId : null, imagenUri, nivelConfianza, latitud, longitud]
+      [id, usuarioId, parcelaId, cultivoId, enfermedadId, imagenUri, nivelConfianza, latitud, longitud, pinLatitud, pinLongitud]
     );
-    console.log("[AgroScanner DB] Deteccion insertada:", id);
+    console.log("[AgroScanner DB] Detección insertada:", id);
   } catch (error) {
     console.error("[AgroScanner DB] Error inserting deteccion:", error);
     throw error;
@@ -482,7 +511,7 @@ export async function getDeteccionById(id) {
 
 /**
  * Obtiene todas las detecciones de un usuario
- * Incluye nombres de cultivo/enfermedad (JOIN)
+ * Incluye nombres de cultivo/enfermedad y alias de parcela (JOIN)
  * Ordenadas por fecha descendente (más recientes primero)
  * 
  * @param {string} usuarioId - UUID del usuario
@@ -492,9 +521,10 @@ export async function getDeteccionesByUsuario(usuarioId) {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      `SELECT d.*, c.nombre as cultivo_nombre, e.nombre as enfermedad_nombre
+      `SELECT d.*, c.nombre as cultivo_nombre, e.nombre as enfermedad_nombre, p.alias as parcela_alias
        FROM detecciones d
        JOIN cultivos c ON d.cultivo_id = c.id
+       JOIN parcelas p ON d.parcela_id = p.id
        LEFT JOIN enfermedades e ON d.enfermedad_id = e.id
        WHERE d.usuario_id = ?
        ORDER BY d.fecha_creacion DESC`,
@@ -502,6 +532,31 @@ export async function getDeteccionesByUsuario(usuarioId) {
     );
   } catch (error) {
     console.error("[AgroScanner DB] Error getting detecciones:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene todas las detecciones de una parcela específica
+ * Usado para mostrar mapa de calor por parcela
+ * 
+ * @param {string} parcelaId - UUID de la parcela
+ * @returns {Promise<Array>} Array de detecciones
+ */
+export async function getDeteccionesByParcela(parcelaId) {
+  const db = getDatabase();
+  try {
+    return await db.getAllAsync(
+      `SELECT d.*, c.nombre as cultivo_nombre, e.nombre as enfermedad_nombre
+       FROM detecciones d
+       JOIN cultivos c ON d.cultivo_id = c.id
+       LEFT JOIN enfermedades e ON d.enfermedad_id = e.id
+       WHERE d.parcela_id = ?
+       ORDER BY d.fecha_creacion DESC`,
+      [parcelaId]
+    );
+  } catch (error) {
+    console.error("[AgroScanner DB] Error getting detecciones by parcela:", error);
     throw error;
   }
 }
@@ -515,7 +570,7 @@ export async function deleteDeteccion(id) {
   const db = getDatabase();
   try {
     await db.runAsync("DELETE FROM detecciones WHERE id = ?", [id]);
-    console.log("[AgroScanner DB] Deteccion eliminada:", id);
+    console.log("[AgroScanner DB] Detección eliminada:", id);
   } catch (error) {
     console.error("[AgroScanner DB] Error deleting deteccion:", error);
     throw error;
@@ -545,18 +600,19 @@ export async function getDeteccionesPendientes() {
 }
 
 /**
- * Obtiene ubicaciones pendientes de sincronizar
+ * Obtiene parcelas pendientes de sincronizar
+ * Se usa para sincronizar cambios de geometría/alias offline
  * 
  * @returns {Promise<Array>}
  */
-export async function getUbicacionesPendientes() {
+export async function getParcelasPendientes() {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      "SELECT * FROM ubicaciones WHERE sincronizado = 0 ORDER BY fecha_creacion"
+      "SELECT * FROM parcelas WHERE sincronizado = 0 ORDER BY fecha_creacion"
     );
   } catch (error) {
-    console.error("[AgroScanner DB] Error getting ubicaciones pendientes:", error);
+    console.error("[AgroScanner DB] Error getting parcelas pendientes:", error);
     throw error;
   }
 }
@@ -574,7 +630,7 @@ export async function getUsuariosPendientes() {
       "SELECT * FROM usuarios WHERE sincronizado = 0 ORDER BY fecha_creacion"
     );
   } catch (error) {
-    console.error("[AgroScanner DB] Error getting usuarios pendients:", error);
+    console.error("[AgroScanner DB] Error getting usuarios pendientes:", error);
     throw error;
   }
 }
@@ -593,9 +649,30 @@ export async function updateDeteccionSincronizado(id, sincronizado = 1) {
       "UPDATE detecciones SET sincronizado = ? WHERE id = ?",
       [sincronizado, id]
     );
-    console.log("[AgroScanner DB] Deteccion marcada como sincronizada:", id);
+    console.log("[AgroScanner DB] Detección marcada como sincronizada:", id);
   } catch (error) {
     console.error("[AgroScanner DB] Error updating deteccion sincronizado:", error);
+    throw error;
+  }
+}
+
+/**
+ * Marca una parcela como sincronizada
+ * Se llama después de subir la geometría al backend
+ * 
+ * @param {string} id - UUID de la parcela
+ * @param {number} sincronizado - 1 por defecto
+ */
+export async function updateParcelaSincronizado(id, sincronizado = 1) {
+  const db = getDatabase();
+  try {
+    await db.runAsync(
+      "UPDATE parcelas SET sincronizado = ? WHERE id = ?",
+      [sincronizado, id]
+    );
+    console.log("[AgroScanner DB] Parcela marcada como sincronizada:", id);
+  } catch (error) {
+    console.error("[AgroScanner DB] Error updating parcela sincronizado:", error);
     throw error;
   }
 }

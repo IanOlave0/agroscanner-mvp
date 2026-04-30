@@ -10,6 +10,9 @@
       "image": "../AgroScannerApp/assets/jaguar.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
-    }
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }

@@ -20,12 +20,17 @@ import PerfilScreen from '../screens/main/PerfilScreen';
 import SeleccionCultivoScreen from '../screens/scanner/SeleccionCultivoScreen';
 import CamaraScreen           from '../screens/scanner/CamaraScreen';
 import ResultadoScreen        from '../screens/scanner/ResultadoScreen';
+import PinPlacementScreen     from '../screens/scanner/PinPlacementScreen';
 
 // Historial
 import HistorialScreen from '../screens/historial/HistorialScreen';
 
 // Mapa
 import MapaScreen from '../screens/mapa/MapaScreen';
+
+// Parcelas
+import ParcelaGestionScreen from '../screens/parcelas/ParcelaGestionScreen';
+import ParcelaCanvasScreen  from '../screens/parcelas/ParcelaCanvasScreen';
 
 // ── Navegadores ───────────────────────────
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -127,6 +132,11 @@ const AppNavigation = () => (
     <Stack.Screen name="SeleccionCultivo" component={SeleccionCultivoScreen} />
     <Stack.Screen name="Camara"           component={CamaraScreen} />
     <Stack.Screen name="Resultado"        component={ResultadoScreen} />
+    <Stack.Screen name="PinPlacement"     component={PinPlacementScreen} />
+
+    {/* Parcelas flow */}
+    <Stack.Screen name="ParcelaGestion"   component={ParcelaGestionScreen} />
+    <Stack.Screen name="ParcelaCanvas"    component={ParcelaCanvasScreen} />
   </Stack.Navigator>
 );
 

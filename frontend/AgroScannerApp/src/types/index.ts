@@ -1,69 +1,86 @@
 // ─────────────────────────────────────────
 // USUARIO
-// Refleja la tabla Usuario de la BD
+// Refleja la tabla usuarios de la BD
 // ─────────────────────────────────────────
 export interface Usuario {
-  id_usuario:  number;
-  nombre:      string;
-  correo:      string;
-  rol:         'agricultor' | 'administrador';
+  id:           string;
+  email:        string;
+  token:        string;
   zona_agricola?: string;
-  token?:      string;
+  fecha_creacion?: string;
+  sincronizado?: boolean;
+}
+
+// ─────────────────────────────────────────
+// PARCELA
+// Refleja la tabla parcelas de la BD
+// Geometría almacenada como JSON string
+// ─────────────────────────────────────────
+export interface Parcela {
+  id:              string;
+  alias:           string;
+  geometria:       string;  // JSON: [{"lat": x, "lng": y}, ...]
+  metros_cuadrados: number;
+  area_timestamp?:  string;
+  usuario_id:       string;
+  fecha_creacion?:  string;
+  sincronizado?:    boolean;
 }
 
 // ─────────────────────────────────────────
 // CULTIVO
-// Refleja la tabla Cultivo de la BD
+// Refleja la tabla cultivos de la BD
 // ─────────────────────────────────────────
 export interface Cultivo {
-  id_cultivo:     number;
-  nombre_cultivo: string;
+  id:                  number;
+  nombre:              string;
+  tratamiento_sugerido?: string;
 }
 
 // ─────────────────────────────────────────
 // ENFERMEDAD
-// Refleja la tabla Enfermedad de la BD
+// Refleja la tabla enfermedades de la BD
 // ─────────────────────────────────────────
 export interface Enfermedad {
-  id_enfermedad:     number;
-  id_cultivo:        number;
-  nombre_enfermedad: string;
-  descripcion:       string;
-  tratamiento:       string;
+  id:          number;
+  nombre:      string;
+  descripcion: string;
+}
+
+// ─────────────────────────────────────────
+// CULTIVO_ENFERMEDAD (Relación)
+// Refleja la tabla cultivo_enfermedad de la BD
+// ─────────────────────────────────────────
+export interface CultivoEnfermedad {
+  cultivo_id:    number;
+  enfermedad_id: number;
+  tratamiento:   string;
 }
 
 // ─────────────────────────────────────────
 // DETECCION
-// Refleja la tabla Deteccion de la BD
+// Refleja la tabla detecciones de la BD
 // Es el dato más importante de la app
 // ─────────────────────────────────────────
 export interface Deteccion {
-  id_deteccion:     number;
-  id_ubicacion:     number;
-  id_cultivo:       number;
-  id_modelo:        number;
-  fecha_hora:       string;       // ISO 8601
-  confianza_ia:     number;       // 0.0 a 1.0
-  resultado_positivo: boolean;    // true = enfermedad detectada
-  ruta_imagen_local: string;      // ruta en el celular
-  sincronizado:     boolean;      // false = pendiente de subir
-  // Datos relacionados (joins del backend)
+  id:                string;
+  usuario_id:        string;
+  parcela_id:        string;
+  cultivo_id:        number;
+  enfermedad_id?:    number;
+  imagen_uri:        string;
+  nivel_confianza:   number;    // 0-100
+  latitud?:          number;    // GPS metadata
+  longitud?:         number;    // GPS metadata
+  pin_latitud:       number;    // Pin manual
+  pin_longitud:      number;    // Pin manual
+  fecha_creacion?:   string;
+  sincronizado?:     boolean;
+  // Datos relacionados (joins)
   nombre_cultivo?:     string;
   nombre_enfermedad?:  string;
+  parcela_alias?:      string;
   tratamiento?:        string;
-}
-
-// ─────────────────────────────────────────
-// UBICACION GPS
-// Refleja la tabla Ubicacion_GPS de la BD
-// ─────────────────────────────────────────
-export interface UbicacionGPS {
-  id_ubicacion:    number;
-  direccion:       string;
-  alias_terreno:   string;
-  metros_cuadrados: number;
-  latitud?:        number;
-  longitud?:       number;
 }
 
 // ─────────────────────────────────────────
@@ -100,6 +117,11 @@ export type RootStackParams = {
   SeleccionCultivo: undefined;
   Camara:    { cultivoId: number; cultivoNombre: string };
   Resultado: { resultado: ResultadoIA; imagenUri: string; cultivoId: number };
+  PinPlacement: { resultado: ResultadoIA; imagenUri: string; cultivoId: number };
+
+  // Parcelas flow
+  ParcelaGestion: undefined;
+  ParcelaCanvas:  { parcelaId?: string };  // undefined = nueva, string = editar
 };
 
 // ─────────────────────────────────────────

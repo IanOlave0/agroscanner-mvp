@@ -33,14 +33,14 @@ export async function openDatabase() {
  * 
  * TABLAS CREADAS:
  * - usuarios: Sesión del agricultor (token JWT, zona agrícola)
- * - parcelas: Terrenos del agricultor (polígono JSON, área m²)
+ * - parcelas: Terrenos del agricultor (polígono, área)
  * - cultivos: Catálogo de cultivos (Limón, Papaya, Plátano)
  * - enfermedades: Catálogo de enfermedades (HLB, Shigatoka, Araña Roja)
  * - cultivo_enfermedad: Relación Muchos-a-Muchos + tratamiento específico
  * - detecciones: Historial de análisis de cultivos (con parcela y pin)
  * 
  * INTEGRIDAD REFERENCIAL:
- * - foreign_keys = ON (obligatorio para relación)
+ * - foreign_keys = ON (obligatorio para relationalidad)
  */
 export async function initDatabase() {
   const database = await openDatabase();
@@ -56,7 +56,7 @@ export async function initDatabase() {
     );
   `);
 
-  await database.execAsync(`
+  await database. execAsync(`
     CREATE TABLE IF NOT EXISTS parcelas (
       id TEXT PRIMARY KEY NOT NULL,
       alias TEXT NOT NULL,
@@ -74,7 +74,7 @@ export async function initDatabase() {
     CREATE TABLE IF NOT EXISTS cultivos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT UNIQUE NOT NULL,
-      tratamiento_sugerido TEXT
+      tratamiento_ sugerido TEXT
     );
   `);
 
@@ -88,7 +88,7 @@ export async function initDatabase() {
 
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS cultivo_enfermedad (
-      cultivo_id INTEGER NOT NULL,
+      cultivo_ id INTEGER NOT NULL,
       enfermedad_id INTEGER NOT NULL,
       tratamiento TEXT NOT NULL,
       PRIMARY KEY (cultivo_id, enfermedad_id),
@@ -100,7 +100,7 @@ export async function initDatabase() {
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS detecciones (
       id TEXT PRIMARY KEY NOT NULL,
-      usuario_id TEXT NOT NULL,
+      usuario_ id TEXT NOT NULL,
       parcela_id TEXT NOT NULL,
       cultivo_id INTEGER NOT NULL,
       enfermedad_id INTEGER,
@@ -119,7 +119,7 @@ export async function initDatabase() {
     );
   `);
 
-  console.log("[AgroScanner DB] Base de datos inicializada correctamente");
+  console. log("[AgroScanner DB] Base de datos inicializada correctamente");
 }
 
 /**

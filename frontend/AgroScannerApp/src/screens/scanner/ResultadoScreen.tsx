@@ -8,25 +8,22 @@ import {
   StatusBar,
   Share,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { RootStackParams, ResultadoIA } from '../../types';
+
+type ResultadoScreenNavigationProp = NativeStackNavigationProp<RootStackParams, 'Resultado'>;
 
 const ResultadoScreen = () => {
-  const navigation = useNavigation();
-
-  const resultado = {
-    planta: 'Limón Mexicano',
-    diagnostico: 'HLB (Dragón Amarillo)',
-    confianza: 94,
-    estado: 'critico',
-    fecha: new Date().toLocaleDateString(),
-    recomendacion: 'Se recomienda el aislamiento de la planta y la aplicación de control fitosanitario para el insecto vector.',
-  };
+  const navigation = useNavigation<ResultadoScreenNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParams, 'Resultado'>>();
+  const { resultado, imagenUri, cultivoId } = route.params;
 
   const handleCompartir = async () => {
     try {
       await Share.share({
-        message: `Alerta AgroScanner: Detectado ${resultado.diagnostico} con ${resultado.confianza}% de confianza.`,
+        message: `Alerta AgroScanner: Detectado ${resultado.enfermedad} con ${(resultado.confianza * 100).toFixed(0)}% de confianza.`,
       });
     } catch (error) {
       console.log(error);
@@ -39,29 +36,29 @@ const ResultadoScreen = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { backgroundColor: COLORS.danger }]}>
           <Text style={styles.headerLabel}>Resultado del Análisis</Text>
-          <Text style={styles.headerPorcentaje}>{resultado.confianza}%</Text>
+          <Text style={styles.headerPorcentaje}>{(resultado.confianza * 100).toFixed(0)}%</Text>
           <Text style={styles.headerConfianza}>Probabilidad de infección</Text>
         </View>
 
         <View style={styles.content}>
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Detección:</Text>
-            <Text style={styles.cardPrincipal}>{resultado.diagnostico}</Text>
+            <Text style={styles.cardPrincipal}>{resultado.enfermedad}</Text>
             <View style={styles.divider} />
             <Text style={styles.cardLabel}>Cultivo analizado:</Text>
-            <Text style={styles.cardSub}>{resultado.planta}</Text>
+            <Text style={styles.cardSub}>{cultivoId}</Text>
           </View>
 
           <View style={styles.recomendaContainer}>
-            <Text style={styles.seccionTitulo}>📋 Recomendaciones</Text>
+            <Text style={styles.seccionTitulo}>📋 Tratamiento sugerido</Text>
             <View style={styles.recomendaCard}>
-              <Text style={styles.recomendaTexto}>{resultado.recomendacion}</Text>
+              <Text style={styles.recomendaTexto}>{resultado.tratamiento}</Text>
             </View>
           </View>
 
           <View style={styles.btnGroup}>
-            <TouchableOpacity style={styles.btnPrimario} onPress={() => navigation.navigate('Mapa' as never)}>
-              <Text style={styles.btnPrimarioText}>Ver en mapa de calor</Text>
+            <TouchableOpacity style={styles.btnPrimario} onPress={() => navigation.navigate('PinPlacement', { resultado, imagenUri, cultivoId })}>
+              <Text style={styles.btnPrimarioText}>Ubicar en parcela</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnSecundario} onPress={handleCompartir}>
               <Text style={styles.btnSecundarioText}>Compartir reporte</Text>

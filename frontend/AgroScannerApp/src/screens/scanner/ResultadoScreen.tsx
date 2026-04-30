@@ -57,8 +57,8 @@ const ResultadoScreen = () => {
           </View>
 
           <View style={styles.btnGroup}>
-            <TouchableOpacity style={styles.btnPrimario} onPress={() => navigation.navigate('PinPlacement', { resultado, imagenUri, cultivoId })}>
-              <Text style={styles.btnPrimarioText}>Ubicar en parcela</Text>
+            <TouchableOpacity style={styles.btnPrimario} onPress={() => navigation.navigate('ResultadoDecision', { resultado, imagenUri, cultivoId })}>
+              <Text style={styles.btnPrimarioText}>Continuar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnSecundario} onPress={handleCompartir}>
               <Text style={styles.btnSecundarioText}>Compartir reporte</Text>

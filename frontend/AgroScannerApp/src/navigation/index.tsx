@@ -20,6 +20,7 @@ import PerfilScreen from '../screens/main/PerfilScreen';
 import SeleccionCultivoScreen from '../screens/scanner/SeleccionCultivoScreen';
 import CamaraScreen           from '../screens/scanner/CamaraScreen';
 import ResultadoScreen        from '../screens/scanner/ResultadoScreen';
+import ResultadoDecisionScreen from '../screens/scanner/ResultadoDecisionScreen';
 import PinPlacementScreen     from '../screens/scanner/PinPlacementScreen';
 
 // Historial
@@ -132,6 +133,7 @@ const AppNavigation = () => (
     <Stack.Screen name="SeleccionCultivo" component={SeleccionCultivoScreen} />
     <Stack.Screen name="Camara"           component={CamaraScreen} />
     <Stack.Screen name="Resultado"        component={ResultadoScreen} />
+    <Stack.Screen name="ResultadoDecision" component={ResultadoDecisionScreen} />
     <Stack.Screen name="PinPlacement"     component={PinPlacementScreen} />
 
     {/* Parcelas flow */}

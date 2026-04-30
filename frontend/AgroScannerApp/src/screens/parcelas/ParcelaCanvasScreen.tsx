@@ -9,12 +9,17 @@
  * - Editar parcela existente (precarga vértices)
  * 
  * FLUJO:
- * 1. Usuario toca pantalla → agrega vértice
+ * 1. Usuario toca canvas → agrega vértice
  * 2. Mínimo 3 vértices → habilita botón "Guardar"
  * 3. Calcula área con turf.js
  * 4. Guarda en BD con geometría JSON
+ * 
+ * FIX APLICADO:
+ * - Reemplazado onTouchEnd por Pressable (funciona dentro de ScrollView)
+ * - Canvas usa 90% del ancho de pantalla (mejor visibilidad)
+ * - Líneas dibujadas con transform: rotate (ángulo correcto)
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -23,7 +28,8 @@ import {
   Dimensions, 
   Alert, 
   TextInput,
-  ScrollView
+  ScrollView,
+  Pressable
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -42,11 +48,10 @@ type Props = {
   route: ParcelaCanvasRouteProp;
 };
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Área de dibujo (80% del ancho de pantalla)
-const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 40, SCREEN_HEIGHT * 0.5);
-const CANVAS_SCALE = 0.00001; // Escala para coordenadas GPS → pixeles
+// Canvas ocupa 90% del ancho de pantalla, mínimo 300px
+const CANVAS_SIZE = Math.max(300, Math.min(SCREEN_WIDTH - 32, 400));
 
 /**
  * Punto (vértice) en el canvas
@@ -93,10 +98,23 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
       setNombre(parcela.alias);
       const parsed = parseGeometria(parcela.geometria);
       
-      // Convertir coordenadas GPS a posición en canvas
-      const scaled = parsed.map((coord, i) => ({
-        x: (coord.lng - parsed[0].lng) / CANVAS_SCALE + CANVAS_SIZE / 2,
-        y: (coord.lat - parsed[0].lat) / CANVAS_SCALE + CANVAS_SIZE / 2,
+      // Normalizar coordenadas al centro del canvas
+      let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+      parsed.forEach(coord => {
+        if (coord.lat < minLat) minLat = coord.lat;
+        if (coord.lat > maxLat) maxLat = coord.lat;
+        if (coord.lng < minLng) minLng = coord.lng;
+        if (coord.lng > maxLng) maxLng = coord.lng;
+      });
+
+      const latRange = maxLat - minLat || 0.001;
+      const lngRange = maxLng - minLng || 0.001;
+      const padding = 40;
+      const usableSize = CANVAS_SIZE - padding * 2;
+
+      const scaled = parsed.map(coord => ({
+        x: padding + ((coord.lng - minLng) / lngRange) * usableSize,
+        y: padding + ((coord.lat - minLat) / latRange) * usableSize,
         lat: coord.lat,
         lng: coord.lng,
       }));
@@ -111,20 +129,24 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
   /**
    * Maneja el toque en el canvas para agregar vértice
+   * Usa Pressable onPress en lugar de onTouchEnd (compatible con ScrollView)
    */
   const handleCanvasTap = (event: any) => {
-    const { locationX, locationY } = event.nativeEvent;
+    const { locationX, locationY } = event;
     
     // Si es edición, no permitir agregar vértices
     if (isEditing) {
-      Alert.alert('Modo edición', 'No puedes agregar vértices en modo edición. Crea una nueva parcela.');
       return;
     }
 
-    // Convertir posición en canvas a coordenadas GPS simuladas
-    // En producción, esto usaría GPS real + posición relativa
-    const lat = -3.5 + (locationY - CANVAS_SIZE / 2) * CANVAS_SCALE * 10000;
-    const lng = -80.0 + (locationX - CANVAS_SIZE / 2) * CANVAS_SCALE * 10000;
+    // Convertir posición en canvas a coordenadas GPS relativas
+    // Centro del canvas = coordenada base simulada
+    const centerX = CANVAS_SIZE / 2;
+    const centerY = CANVAS_SIZE / 2;
+    const scale = 0.0001; // 1px ≈ 0.0001 grados
+
+    const lat = -3.5 + (locationY - centerY) * scale;
+    const lng = -80.0 + (locationX - centerX) * scale;
 
     const newVertex: Vertex = {
       x: locationX,
@@ -146,55 +168,99 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
   /**
    * Dibuja el polígono en el canvas (representación visual)
+   * Usa líneas con rotación correcta para conexiones diagonales
    */
   const renderPolygon = () => {
-    if (vertices.length === 0) return null;
+    if (vertices.length === 0) {
+      return (
+        <View 
+          style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
+          ref={canvasRef}
+        >
+          <Pressable
+            style={styles.canvasPressable}
+            onPress={handleCanvasTap}
+          >
+            <Text style={styles.canvasHint}>
+              Toca aquí para agregar el primer vértice
+            </Text>
+          </Pressable>
+        </View>
+      );
+    }
 
     return (
       <View 
         style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
         ref={canvasRef}
-        onTouchEnd={handleCanvasTap}
       >
-        {/* Líneas entre vértices */}
-        {vertices.map((vertex, i) => {
-          if (i === 0) return null;
-          const prev = vertices[i - 1];
-          return (
+        <Pressable
+          style={styles.canvasPressable}
+          onPress={handleCanvasTap}
+        >
+          {/* Líneas entre vértices con rotación correcta */}
+          {vertices.map((vertex, i) => {
+            if (i === 0) return null;
+            const prev = vertices[i - 1];
+            const dx = vertex.x - prev.x;
+            const dy = vertex.y - prev.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            return (
+              <View
+                key={`line-${i}`}
+                style={[
+                  styles.line,
+                  {
+                    left: prev.x,
+                    top: prev.y,
+                    width: length,
+                    transform: [{ rotate: `${angle}deg` }],
+                  },
+                ]}
+              />
+            );
+          })}
+
+          {/* Línea de cierre si hay 3+ vértices */}
+          {vertices.length >= 3 && (() => {
+            const first = vertices[0];
+            const last = vertices[vertices.length - 1];
+            const dx = first.x - last.x;
+            const dy = first.y - last.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            return (
+              <View
+                key="line-cierre"
+                style={[
+                  styles.lineCierre,
+                  {
+                    left: last.x,
+                    top: last.y,
+                    width: length,
+                    transform: [{ rotate: `${angle}deg` }],
+                  },
+                ]}
+              />
+            );
+          })()}
+
+          {/* Vértices (puntos) */}
+          {vertices.map((vertex, i) => (
             <View
-              key={`line-${i}`}
+              key={`vertex-${i}`}
               style={[
-                styles.line,
-                {
-                  left: Math.min(vertex.x, prev.x),
-                  top: Math.min(vertex.y, prev.y),
-                  width: Math.abs(vertex.x - prev.x),
-                  height: Math.abs(vertex.y - prev.y),
-                },
+                styles.vertex,
+                { left: vertex.x - 8, top: vertex.y - 8 },
               ]}
-            />
-          );
-        })}
-
-        {/* Vértices (puntos) */}
-        {vertices.map((vertex, i) => (
-          <View
-            key={`vertex-${i}`}
-            style={[
-              styles.vertex,
-              { left: vertex.x - 6, top: vertex.y - 6 },
-            ]}
-          >
-            <Text style={styles.vertexLabel}>{i + 1}</Text>
-          </View>
-        ))}
-
-        {/* Instrucción */}
-        {vertices.length === 0 && (
-          <Text style={styles.canvasHint}>
-            Toca aquí para agregar vértices
-          </Text>
-        )}
+            >
+              <Text style={styles.vertexLabel}>{i + 1}</Text>
+            </View>
+          ))}
+        </Pressable>
       </View>
     );
   };
@@ -226,11 +292,9 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
       const timestamp = new Date().toISOString();
 
       if (isEditing && parcelaId) {
-        // Actualizar parcela existente
         await updateParcelaGeometria(parcelaId, geometriaJSON, areaM2, timestamp);
         Alert.alert('Éxito', 'Parcela actualizada correctamente');
       } else {
-        // Crear nueva parcela
         const id = uuidv4();
         await insertParcela(id, nombre, geometriaJSON, areaM2, timestamp, usuario.id);
         Alert.alert('Éxito', 'Parcela creada correctamente');
@@ -252,7 +316,6 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
     const newVertices = vertices.slice(0, -1);
     setVertices(newVertices);
 
-    // Recalcular área
     if (newVertices.length >= 3) {
       const coords = newVertices.map(v => ({ lat: v.lat, lng: v.lng }));
       setArea(calcularAreaParcela(coords));
@@ -283,7 +346,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Volver</Text>
@@ -293,80 +356,86 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
         </Text>
       </View>
 
-      {/* Nombre */}
-      <View style={styles.nameSection}>
-        <Text style={styles.label}>Nombre de la parcela</Text>
-        <TextInput
-          style={styles.input}
-          value={nombre}
-          onChangeText={setNombre}
-          placeholder="Ej: Parcela Norte, Terreno A, ..."
-          placeholderTextColor={COLORS.textMuted}
-        />
-      </View>
-
-      {/* Canvas */}
-      <View style={styles.canvasSection}>
-        <Text style={styles.label}>
-          {isEditing ? 'Vista de la parcela' : 'Toca para agregar vértices'}
-        </Text>
-        {renderPolygon()}
-      </View>
-
-      {/* Info */}
-      <View style={styles.infoSection}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Vértices:</Text>
-          <Text style={styles.infoValue}>{vertices.length}</Text>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Nombre */}
+        <View style={styles.nameSection}>
+          <Text style={styles.label}>Nombre de la parcela</Text>
+          <TextInput
+            style={styles.input}
+            value={nombre}
+            onChangeText={setNombre}
+            placeholder="Ej: Parcela Norte, Terreno A, ..."
+            placeholderTextColor={COLORS.textMuted}
+          />
         </View>
-        
-        {area !== null && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Área:</Text>
-            <Text style={[styles.infoValue, styles.areaValue]}>
-              {formatearArea(area)}
-            </Text>
-          </View>
-        )}
-      </View>
 
-      {/* Botones */}
-      <View style={styles.buttonsSection}>
-        {!isEditing && (
-          <>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]}
-              onPress={handleDeshacer}
-              disabled={vertices.length === 0}
-            >
-              <Text style={styles.secondaryButtonText}>Deshacer</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.button, styles.dangerButton]}
-              onPress={handleLimpiar}
-              disabled={vertices.length === 0}
-            >
-              <Text style={styles.dangerButtonText}>Limpiar</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        <TouchableOpacity 
-          style={[
-            styles.button, 
-            styles.primaryButton,
-            (vertices.length < 3 || !nombre.trim()) && styles.disabledButton,
-          ]}
-          onPress={handleGuardar}
-          disabled={vertices.length < 3 || !nombre.trim()}
-        >
-          <Text style={styles.primaryButtonText}>
-            {isEditing ? 'Actualizar' : 'Guardar Parcela'}
+        {/* Canvas */}
+        <View style={styles.canvasSection}>
+          <Text style={styles.label}>
+            {isEditing ? 'Vista de la parcela' : 'Toca el mapa para agregar vértices'}
           </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          {renderPolygon()}
+        </View>
+
+        {/* Info */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Vértices:</Text>
+            <Text style={styles.infoValue}>{vertices.length}</Text>
+          </View>
+          
+          {area !== null && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Área:</Text>
+              <Text style={[styles.infoValue, styles.areaValue]}>
+                {formatearArea(area)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Botones */}
+        <View style={styles.buttonsSection}>
+          {!isEditing && (
+            <>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]}
+                onPress={handleDeshacer}
+                disabled={vertices.length === 0}
+              >
+                <Text style={styles.secondaryButtonText}>Deshacer último</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.button, styles.dangerButton]}
+                onPress={handleLimpiar}
+                disabled={vertices.length === 0}
+              >
+                <Text style={styles.dangerButtonText}>Limpiar todo</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              styles.primaryButton,
+              (vertices.length < 3 || !nombre.trim()) && styles.disabledButton,
+            ]}
+            onPress={handleGuardar}
+            disabled={vertices.length < 3 || !nombre.trim()}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isEditing ? 'Actualizar Parcela' : 'Guardar Parcela'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -377,6 +446,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -390,6 +460,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
     color: COLORS.textPrimary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xxl,
   },
   nameSection: {
     padding: SPACING.lg,
@@ -419,43 +495,63 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     borderWidth: 2,
-    borderColor: COLORS.border,
-    position: 'relative',
-    marginVertical: SPACING.md,
+    borderColor: COLORS.primary + '40',
+    overflow: 'hidden',
+  },
+  canvasPressable: {
+    width: '100%',
+    height: '100%',
   },
   canvasHint: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -80 }, { translateY: -12 }],
+    transform: [{ translateX: -100 }, { translateY: -12 }],
     color: COLORS.textMuted,
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.md,
+    textAlign: 'center',
+    width: 200,
   },
   line: {
     position: 'absolute',
     backgroundColor: COLORS.primary,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  lineCierre: {
+    position: 'absolute',
+    backgroundColor: COLORS.primary + '80',
     height: 2,
+    borderStyle: 'dashed',
   },
   vertex: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: COLORS.primary,
     borderWidth: 2,
     borderColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
   vertexLabel: {
     color: COLORS.white,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: FONT_WEIGHT.bold,
   },
   infoSection: {
-    padding: SPACING.lg,
+    marginHorizontal: SPACING.lg,
     backgroundColor: COLORS.white,
-    marginTop: SPACING.md,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -493,7 +589,7 @@ const styles = StyleSheet.create({
     fontWeight: FONT_WEIGHT.semibold,
   },
   secondaryButton: {
-    backgroundColor: COLORS.bgPrimary,
+    backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -503,7 +599,7 @@ const styles = StyleSheet.create({
     fontWeight: FONT_WEIGHT.semibold,
   },
   dangerButton: {
-    backgroundColor: COLORS.danger + '20',
+    backgroundColor: COLORS.danger + '15',
   },
   dangerButtonText: {
     color: COLORS.danger,

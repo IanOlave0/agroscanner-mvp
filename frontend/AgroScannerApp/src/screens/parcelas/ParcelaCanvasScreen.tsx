@@ -1,38 +1,39 @@
 /**
  * Pantalla de Canvas para Dibujo de Parcelas
- * 
+ *
  * Permite al agricultor:
  * - Tocar la pantalla para agregar vértices del polígono
  * - Ver el polígono en tiempo real mientras dibuja
  * - Ver el área calculada (con turf.js)
  * - Guardar la parcela en la BD
  * - Editar parcela existente (precarga vértices)
- * 
+ *
  * FLUJO:
  * 1. Usuario toca canvas → agrega vértice
  * 2. Mínimo 3 vértices → habilita botón "Guardar"
  * 3. Calcula área con turf.js
  * 4. Guarda en BD con geometría JSON
- * 
+ *
  * FIX APLICADO:
- * - Reemplazado onTouchEnd por Pressable (funciona dentro de ScrollView)
- * - Canvas usa 90% del ancho de pantalla (mejor visibilidad)
- * - Líneas dibujadas con transform: rotate (ángulo correcto)
+ * - Usando react-native-svg para dibujar líneas y vértices
+ * - Pressable para detección de taps
+ * - Líneas conectan directamente los vértices (x1,y1 → x2,y2)
  */
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Dimensions, 
-  Alert, 
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Alert,
   TextInput,
   ScrollView,
   Pressable
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import Svg, { Line, Circle, Polygon as SvgPolygon } from 'react-native-svg';
 import { RootStackParams, Parcela, Usuario } from '../../types';
 import { COLORS, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../../constants';
 import { insertParcela, getParcelaById, getUsuarioActivo, updateParcelaGeometria } from '../../database/queries';
@@ -69,7 +70,6 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   const [nombre, setNombre] = useState('');
   const [area, setArea] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const canvasRef = useRef<View>(null);
 
   /**
    * Si es edición, carga la parcela existente
@@ -132,21 +132,19 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
    * Usa Pressable onPress en lugar de onTouchEnd (compatible con ScrollView)
    */
   const handleCanvasTap = (event: any) => {
-    const { locationX, locationY } = event;
+    const { locationX, locationY } = event.nativeEvent;
     
-    // Si es edición, no permitir agregar vértices
-    if (isEditing) {
-      return;
-    }
+    if (isEditing) return;
 
-    // Convertir posición en canvas a coordenadas GPS relativas
-    // Centro del canvas = coordenada base simulada
     const centerX = CANVAS_SIZE / 2;
     const centerY = CANVAS_SIZE / 2;
-    const scale = 0.0001; // 1px ≈ 0.0001 grados
+    const scale = 0.00005;
 
-    const lat = -3.5 + (locationY - centerY) * scale;
-    const lng = -80.0 + (locationX - centerX) * scale;
+    const baseLat = 19.1460;
+    const baseLng = -104.3260;
+
+    const lat = baseLat + (locationY - centerY) * scale;
+    const lng = baseLng + (locationX - centerX) * scale;
 
     const newVertex: Vertex = {
       x: locationX,
@@ -158,7 +156,6 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
     const newVertices = [...vertices, newVertex];
     setVertices(newVertices);
 
-    // Calcular área si hay al menos 3 vértices
     if (newVertices.length >= 3) {
       const coords = newVertices.map(v => ({ lat: v.lat, lng: v.lng }));
       const calculatedArea = calcularAreaParcela(coords);
@@ -167,100 +164,76 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Dibuja el polígono en el canvas (representación visual)
-   * Usa líneas con rotación correcta para conexiones diagonales
+   * Dibuja el polígono usando SVG (líneas directas entre vértices)
    */
   const renderPolygon = () => {
-    if (vertices.length === 0) {
-      return (
-        <View 
-          style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-          ref={canvasRef}
-        >
-          <Pressable
-            style={styles.canvasPressable}
-            onPress={handleCanvasTap}
-          >
-            <Text style={styles.canvasHint}>
-              Toca aquí para agregar el primer vértice
-            </Text>
-          </Pressable>
-        </View>
-      );
-    }
-
     return (
-      <View 
+      <View
         style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-        ref={canvasRef}
       >
+        {/* Svg en la capa inferior - no bloquea touches */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg
+            width={CANVAS_SIZE}
+            height={CANVAS_SIZE}
+          >
+            {/* Línea de cierre (del último al primero) si hay 3+ vértices */}
+            {vertices.length >= 3 && (
+              <Line
+                x1={vertices[vertices.length - 1].x}
+                y1={vertices[vertices.length - 1].y}
+                x2={vertices[0].x}
+                y2={vertices[0].y}
+                stroke={COLORS.primary}
+                strokeWidth={2}
+                strokeOpacity={0.5}
+              />
+            )}
+
+            {/* Líneas entre vértices consecutivos */}
+            {vertices.map((vertex, i) => {
+              if (i === 0) return null;
+              const prev = vertices[i - 1];
+              return (
+                <Line
+                  key={`line-${i}`}
+                  x1={prev.x}
+                  y1={prev.y}
+                  x2={vertex.x}
+                  y2={vertex.y}
+                  stroke={COLORS.primary}
+                  strokeWidth={3}
+                />
+              );
+            })}
+
+            {/* Vértices como círculos */}
+            {vertices.map((vertex, i) => (
+              <Circle
+                key={`vertex-${i}`}
+                cx={vertex.x}
+                cy={vertex.y}
+                r={10}
+                fill={COLORS.primary}
+                stroke={COLORS.white}
+                strokeWidth={2}
+              />
+            ))}
+          </Svg>
+        </View>
+
+        {/* Hint cuando no hay vértices */}
+        {vertices.length === 0 && (
+          <Text style={styles.canvasHint}>
+            Toca aquí para agregar el primer vértice
+          </Text>
+        )}
+
+        {/* Pressable en la capa superior - captura todos los taps */}
         <Pressable
-          style={styles.canvasPressable}
+          style={StyleSheet.absoluteFill}
           onPress={handleCanvasTap}
-        >
-          {/* Líneas entre vértices con rotación correcta */}
-          {vertices.map((vertex, i) => {
-            if (i === 0) return null;
-            const prev = vertices[i - 1];
-            const dx = vertex.x - prev.x;
-            const dy = vertex.y - prev.y;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-            return (
-              <View
-                key={`line-${i}`}
-                style={[
-                  styles.line,
-                  {
-                    left: prev.x,
-                    top: prev.y,
-                    width: length,
-                    transform: [{ rotate: `${angle}deg` }],
-                  },
-                ]}
-              />
-            );
-          })}
-
-          {/* Línea de cierre si hay 3+ vértices */}
-          {vertices.length >= 3 && (() => {
-            const first = vertices[0];
-            const last = vertices[vertices.length - 1];
-            const dx = first.x - last.x;
-            const dy = first.y - last.y;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-            return (
-              <View
-                key="line-cierre"
-                style={[
-                  styles.lineCierre,
-                  {
-                    left: last.x,
-                    top: last.y,
-                    width: length,
-                    transform: [{ rotate: `${angle}deg` }],
-                  },
-                ]}
-              />
-            );
-          })()}
-
-          {/* Vértices (puntos) */}
-          {vertices.map((vertex, i) => (
-            <View
-              key={`vertex-${i}`}
-              style={[
-                styles.vertex,
-                { left: vertex.x - 8, top: vertex.y - 8 },
-              ]}
-            >
-              <Text style={styles.vertexLabel}>{i + 1}</Text>
-            </View>
-          ))}
-        </Pressable>
+        />
       </View>
     );
   };
@@ -511,39 +484,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     textAlign: 'center',
     width: 200,
-  },
-  line: {
-    position: 'absolute',
-    backgroundColor: COLORS.primary,
-    height: 3,
-    borderRadius: 1.5,
-  },
-  lineCierre: {
-    position: 'absolute',
-    backgroundColor: COLORS.primary + '80',
-    height: 2,
-    borderStyle: 'dashed',
-  },
-  vertex: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    borderWidth: 2,
-    borderColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  vertexLabel: {
-    color: COLORS.white,
-    fontSize: 9,
-    fontWeight: FONT_WEIGHT.bold,
   },
   infoSection: {
     marginHorizontal: SPACING.lg,

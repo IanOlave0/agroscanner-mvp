@@ -8,12 +8,12 @@ import {
   StatusBar,
   Alert,
   Switch,
-  // CORRECCIÓN: Se eliminó 'Platform' porque no se estaba usando
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { clearMockUser } from '../../database/seedData';
 
 const PerfilScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -24,7 +24,7 @@ const PerfilScreen = () => {
   const haySession = true; 
   const nombreUsuario = haySession ? 'Carlos Ramírez' : 'Invitado';
 
-  const handleCerrarSesion = () => {
+  const handleCerrarSesion = async () => {
     Alert.alert(
       'Cerrar sesión',
       '¿Estás seguro que deseas cerrar tu sesión?',
@@ -33,7 +33,8 @@ const PerfilScreen = () => {
         {
           text: 'Cerrar sesión',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await clearMockUser();
             navigation.replace('Welcome');
           },
         },

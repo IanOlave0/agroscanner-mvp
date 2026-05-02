@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW, IMAGES } from '../../constants';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'Login'>;

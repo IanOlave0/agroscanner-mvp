@@ -1,12 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Animated, Image,
+  StatusBar, Animated, Image, ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW, IMAGES } from '../../constants';
-
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW } from '../../constants';
+import { seedMockUser } from '../../database/seedData';
 
 
 type Props = {
@@ -14,12 +14,11 @@ type Props = {
 };
 
 const WelcomeScreen = ({ navigation }: Props) => {
-  // ── Animaciones de entrada ────────────
-  // Hacen que los elementos aparezcan
-  // suavemente al abrir la app
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
   Animated.parallel([
@@ -40,8 +39,19 @@ const WelcomeScreen = ({ navigation }: Props) => {
       useNativeDriver: true,
     }),
   ]).start();
-// eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
+
+  const handleDemo = async () => {
+    try {
+      setLoading(true);
+      await seedMockUser();
+      navigation.replace('Home');
+    } catch (error) {
+      console.error('[WelcomeScreen] Error al iniciar demo:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -104,11 +114,24 @@ const WelcomeScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={styles.btnDemo}
+          onPress={handleDemo}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : (
+            <Text style={styles.btnDemoText}>👨‍🌾 Iniciar como Demo</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.btnGuest}
           onPress={() => navigation.navigate('Home')}
           activeOpacity={0.85}
         >
-          <Text style={styles.btnGuestText}>📷  Escanear sin cuenta</Text>
+          <Text style={styles.btnGuestText}>📷 Escanear sin cuenta</Text>
         </TouchableOpacity>
 
         <Text style={styles.footer}>
@@ -255,6 +278,22 @@ const styles = StyleSheet.create({
     fontWeight:    FONT_WEIGHT.extrabold,
     color:         COLORS.primary,
     letterSpacing: 2,
+  },
+  btnDemo: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius:    RADIUS.xl,
+    paddingVertical: SPACING.lg,
+    alignItems:      'center',
+    borderWidth:     2,
+    borderColor:     COLORS.acento,
+    borderStyle:     'dashed',
+    ...SHADOW.sm,
+  },
+  btnDemoText: {
+    fontSize:      FONT_SIZE.lg,
+    fontWeight:    FONT_WEIGHT.extrabold,
+    color:         COLORS.acentoDark,
+    letterSpacing: 1,
   },
   btnGuest: {
     backgroundColor: COLORS.acentoLight,

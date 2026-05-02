@@ -8,9 +8,6 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParams } from '../../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
 
 const { width } = Dimensions.get('window');
@@ -58,7 +55,6 @@ const ZONAS_ALERTA = [
 
 const MapaScreen = () => {
   const [vistaActiva, setVistaActiva] = useState<'mapa' | 'lista'>('mapa');
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
 
   return (
     <View style={styles.container}>
@@ -75,12 +71,6 @@ const MapaScreen = () => {
           <Text style={styles.subtitulo}>
             Visualización epidemiológica de Colima
           </Text>
-          <TouchableOpacity 
-            style={styles.btnGestionar}
-            onPress={() => navigation.navigate('ParcelaGestion')}
-          >
-            <Text style={styles.btnGestionarText}>📐 Gestionar Parcelas</Text>
-          </TouchableOpacity>
         </View>
 
         {/* ── Selector de vista ── */}
@@ -299,19 +289,6 @@ const styles = StyleSheet.create({
   subtitulo: {
     fontSize: FONT_SIZE.md,
     color:    COLORS.textSecondary,
-  },
-  btnGestionar: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    marginTop: SPACING.md,
-    alignSelf: 'flex-start',
-  },
-  btnGestionarText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
   },
 
   // ── Selector vista

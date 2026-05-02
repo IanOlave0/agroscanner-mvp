@@ -135,7 +135,7 @@ export const CULTIVOS = {
   papaya: {
     id:          2,
     nombre:      'Papaya',
-    emoji:       '🍈',
+    emoji:       '🥭',
     enfermedad:  'Araña Roja',
     color:       '#E65100',
     colorFondo:  '#FFF3E0',

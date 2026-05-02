@@ -1,4 +1,14 @@
-import React from 'react';
+/**
+ * Pantalla Home - Panel de control del agricultor
+ *
+ * Muestra:
+ * - Lista de parcelas del usuario
+ * - Últimas 3 detecciones con enfermedad y parcela
+ * - Acceso rápido a funciones principales
+ *
+ * ACCESO: Solo usuarios autenticados
+ */
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +16,17 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, CULTIVOS } from '../../constants';
+import { getParcelasByUsuario, getDeteccionesByUsuario, getUsuarioActivo } from '../../database/queries';
+import { Parcela, Deteccion, Usuario } from '../../types';
+import { RootStackParams } from '../../types';
+import { formatearArea, parseGeometria } from '../../utils/geometria';
 
 type TabParams = {
   Home: undefined;
@@ -21,9 +38,80 @@ type TabParams = {
 
 const HomeScreen = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParams>>();
+  const stackNavigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const [parcelas, setParcelas] = useState<Parcela[]>([]);
+  const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarDatos();
+    }, [])
+  );
+
+  const cargarDatos = async () => {
+    try {
+      const usuario = await getUsuarioActivo() as Usuario | null;
+      if (!usuario) {
+        return;
+      }
+
+      const [listaParcelas, listaDetecciones] = await Promise.all([
+        getParcelasByUsuario(usuario.id),
+        getDeteccionesByUsuario(usuario.id),
+      ]);
+
+      setParcelas(listaParcelas);
+      setDetecciones(listaDetecciones);
+    } catch (error) {
+      console.error('[Home] Error cargando datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAgregarParcela = () => {
+    stackNavigation.navigate('ParcelaCanvas', { parcelaId: undefined });
+  };
+
+  const handleVerTodasParcelas = () => {
+    stackNavigation.navigate('ParcelaGestion');
+  };
+
+  const handleEditarParcela = (id: string) => {
+    stackNavigation.navigate('ParcelaCanvas', { parcelaId: id });
+  };
+
+  const getNivelRiesgoBadge = (deteccion: Deteccion) => {
+    if (!deteccion.enfermedad_id) {
+      return { emoji: '🟢', texto: 'Sano' };
+    }
+    if (deteccion.nivel_confianza >= 80) {
+      return { emoji: '🔴', texto: 'Alto' };
+    }
+    return { emoji: '🟡', texto: 'Medio' };
+  };
+
+  const formatFechaRelativa = (fechaStr: string) => {
+    const fecha = new Date(fechaStr);
+    const ahora = new Date();
+    const diffMs = ahora.getTime() - fecha.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHoras = Math.floor(diffMins / 60);
+    const diffDias = Math.floor(diffHoras / 24);
+
+    if (diffMins < 60) return `hace ${diffMins}m`;
+    if (diffHoras < 24) return `hace ${diffHoras}h`;
+    if (diffDias < 7) return `hace ${diffDias}d`;
+    return fecha.toLocaleDateString();
+  };
+
+  const parcelasVisibles = parcelas.slice(0, 3);
+  const hayMasParcelas = parcelas.length > 3;
+  const deteccionesRecientes = detecciones.slice(0, 3);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
       <ScrollView
@@ -35,7 +123,7 @@ const HomeScreen = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.saludo}>Buenos días 👋</Text>
-            <Text style={styles.titulo}>¿Qué vamos a{'\n'}analizar hoy?</Text>
+            <Text style={styles.titulo}>Panel de{'\n'}Control</Text>
           </View>
           <TouchableOpacity
             style={styles.perfilBtn}
@@ -56,48 +144,97 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* ── Título sección cultivos ── */}
-        <Text style={styles.seccionTitulo}>Selecciona tu cultivo</Text>
+        {/* ── Lista de parcelas ── */}
+        <View style={styles.panelParcelas}>
+          <TouchableOpacity
+            style={styles.botonAgregar}
+            onPress={handleAgregarParcela}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.botonAgregarIcon}>➕</Text>
+            <Text style={styles.botonAgregarTexto}>Agregar parcela</Text>
+          </TouchableOpacity>
 
-        {/* ── Tarjetas de cultivos ── */}
-        <View style={styles.cultivosContainer}>
+          {parcelas.length === 0 ? (
+            <View style={styles.emptyParcelas}>
+              <Text style={styles.emptyParcelasText}>
+                Sin parcelas registradas
+              </Text>
+            </View>
+          ) : (
+            <>
+              {parcelasVisibles.map((parcela) => {
+                const vertices = parseGeometria(parcela.geometria);
+                return (
+                  <TouchableOpacity
+                    key={parcela.id}
+                    style={styles.parcelaItem}
+                    onPress={() => handleEditarParcela(parcela.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.parcelaInfo}>
+                      <Text style={styles.parcelaNombre}>{parcela.alias}</Text>
+                      <Text style={styles.parcelaMeta}>
+                        {vertices.length} vérticos · {formatearArea(parcela.metros_cuadrados)}
+                      </Text>
+                    </View>
+                    <Text style={styles.parcelaFlecha}>›</Text>
+                  </TouchableOpacity>
+                );
+              })}
 
-          <TarjetaCultivo
-            emoji={CULTIVOS.limon.emoji}
-            nombre={CULTIVOS.limon.nombre}
-            enfermedad={CULTIVOS.limon.enfermedad}
-            color={CULTIVOS.limon.color}
-            colorFondo={CULTIVOS.limon.colorFondo}
-            onPress={() => navigation.navigate('Scanner')}
-          />
-
-          <TarjetaCultivo
-            emoji={CULTIVOS.papaya.emoji}
-            nombre={CULTIVOS.papaya.nombre}
-            enfermedad={CULTIVOS.papaya.enfermedad}
-            color={CULTIVOS.papaya.color}
-            colorFondo={CULTIVOS.papaya.colorFondo}
-            onPress={() => navigation.navigate('Scanner')}
-          />
-
-          <TarjetaCultivo
-            emoji={CULTIVOS.platano.emoji}
-            nombre={CULTIVOS.platano.nombre}
-            enfermedad={CULTIVOS.platano.enfermedad}
-            color={CULTIVOS.platano.color}
-            colorFondo={CULTIVOS.platano.colorFondo}
-            onPress={() => navigation.navigate('Scanner')}
-          />
-
+              {hayMasParcelas && (
+                <TouchableOpacity
+                  style={styles.verTodasBtn}
+                  onPress={handleVerTodasParcelas}
+                >
+                  <Text style={styles.verTodasText}>
+                    Ver todas ({parcelas.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
 
-        {/* ── Sección estadísticas rápidas ── */}
-        <Text style={styles.seccionTitulo}>Resumen de hoy</Text>
-        <View style={styles.statsRow}>
-          <StatCard emoji="🔍" numero="0" label="Escaneos" color={COLORS.primary} />
-          <StatCard emoji="⚠️" numero="0" label="Alertas"  color={COLORS.danger} />
-          <StatCard emoji="✅" numero="0" label="Sanas"    color={COLORS.success} />
-        </View>
+        {/* ── Detecciones recientes ── */}
+        {deteccionesRecientes.length > 0 ? (
+          <>
+            <Text style={styles.seccionTitulo}>Detecciones recientes</Text>
+            <View style={styles.deteccionesContainer}>
+              {deteccionesRecientes.map((deteccion) => {
+                const badge = getNivelRiesgoBadge(deteccion);
+                return (
+                  <View key={deteccion.id} style={styles.deteccionCard}>
+                    <View style={styles.deteccionInfo}>
+                      <Text style={styles.deteccionEnfermedad}>
+                        {deteccion.enfermedad_id
+                          ? deteccion.nombre_enfermedad || 'Enfermedad detectada'
+                          : 'Sano'}
+                      </Text>
+                      <Text style={styles.deteccionParcela}>
+                        {deteccion.nombre_cultivo || 'Cultivo'} • {deteccion.parcela_alias || 'Sin parcela'}
+                      </Text>
+                    </View>
+                    <View style={styles.deteccionRight}>
+                      <Text style={styles.deteccionBadge}>{badge.emoji}</Text>
+                      <Text style={styles.deteccionTiempo}>
+                        {formatFechaRelativa(deteccion.fecha_creacion || '')}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : (
+          <View style={styles.emptyDetecciones}>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={styles.emptyText}>
+              Sin detecciones aún. Ve a "Escanear" para comenzar.
+            </Text>
+          </View>
+        )}
 
         {/* ── Acceso rápido ── */}
         <Text style={styles.seccionTitulo}>Acceso rápido</Text>
@@ -124,45 +261,9 @@ const HomeScreen = () => {
         </View>
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
-
-// ── Tarjeta de cultivo ────────────────────
-const TarjetaCultivo = ({
-  emoji, nombre, enfermedad, color, colorFondo, onPress,
-}: {
-  emoji: string; nombre: string; enfermedad: string;
-  color: string; colorFondo: string; onPress: () => void;
-}) => (
-  <TouchableOpacity
-    style={[styles.tarjeta, { borderLeftColor: color, borderLeftWidth: 5 }]}
-    onPress={onPress}
-    activeOpacity={0.85}
-  >
-    <View style={[styles.tarjetaEmojiBg, { backgroundColor: colorFondo }]}>
-      <Text style={styles.tarjetaEmoji}>{emoji}</Text>
-    </View>
-    <View style={styles.tarjetaInfo}>
-      <Text style={styles.tarjetaNombre}>{nombre}</Text>
-      <Text style={styles.tarjetaEnfermedad}>Detecta: {enfermedad}</Text>
-    </View>
-    <Text style={styles.tarjetaFlecha}>›</Text>
-  </TouchableOpacity>
-);
-
-// ── Tarjeta de estadística ────────────────
-const StatCard = ({
-  emoji, numero, label, color,
-}: {
-  emoji: string; numero: string; label: string; color: string;
-}) => (
-  <View style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]}>
-    <Text style={styles.statEmoji}>{emoji}</Text>
-    <Text style={[styles.statNumero, { color }]}>{numero}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
 
 export default HomeScreen;
 
@@ -173,7 +274,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.xl,
+    paddingTop:        SPACING.md,
     paddingBottom:     SPACING.xxl,
     gap:               SPACING.md,
   },
@@ -181,7 +282,7 @@ const styles = StyleSheet.create({
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'flex-start',
-    marginBottom:   SPACING.sm,
+    marginBottom:   SPACING.xs,
   },
   saludo: {
     fontSize: FONT_SIZE.md,
@@ -230,62 +331,116 @@ const styles = StyleSheet.create({
     fontSize:   FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
     color:      COLORS.textPrimary,
-    marginTop:  SPACING.sm,
+    marginTop:  SPACING.xs,
   },
-  cultivosContainer: { gap: SPACING.sm },
-  tarjeta: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.bgCard,
+  panelParcelas: {
+    backgroundColor: COLORS.white,
     borderRadius:    RADIUS.lg,
     padding:         SPACING.md,
-    gap:             SPACING.md,
-    elevation:       2,
+    gap:             SPACING.sm,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: 2 },
+    shadowOpacity:   0.1,
+    shadowRadius:    4,
+    elevation:       3,
   },
-  tarjetaEmojiBg: {
-    width:          64,
-    height:         64,
-    borderRadius:   RADIUS.md,
-    alignItems:     'center',
-    justifyContent: 'center',
+  botonAgregar: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    backgroundColor: COLORS.primary,
+    borderRadius:    RADIUS.md,
+    padding:         SPACING.md,
+    gap:             SPACING.sm,
   },
-  tarjetaEmoji:  { fontSize: 36 },
-  tarjetaInfo:   { flex: 1, gap: 4 },
-  tarjetaNombre: {
-    fontSize:   FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
+  botonAgregarIcon:  { fontSize: 20 },
+  botonAgregarTexto: {
+    fontSize:   FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color:      COLORS.white,
+  },
+  emptyParcelas: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  emptyParcelasText: {
+    fontSize: FONT_SIZE.sm,
+    color:    COLORS.textMuted,
+  },
+  parcelaItem: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    backgroundColor: COLORS.bgPrimary,
+    borderRadius:    RADIUS.md,
+    padding:         SPACING.md,
+  },
+  parcelaInfo: { flex: 1 },
+  parcelaNombre: {
+    fontSize:   FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
     color:      COLORS.textPrimary,
   },
-  tarjetaEnfermedad: {
+  parcelaMeta: {
     fontSize: FONT_SIZE.sm,
     color:    COLORS.textSecondary,
+    marginTop: 2,
   },
-  tarjetaFlecha: {
-    fontSize:   FONT_SIZE.xxl,
+  parcelaFlecha: {
+    fontSize:   FONT_SIZE.xl,
     color:      COLORS.textMuted,
     fontWeight: FONT_WEIGHT.bold,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap:           SPACING.sm,
+  verTodasBtn: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
   },
-  statCard: {
-    flex:            1,
-    backgroundColor: COLORS.bgCard,
+  verTodasText: {
+    fontSize:   FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.medium,
+    color:      COLORS.primary,
+  },
+  deteccionesContainer: {
+    gap: SPACING.sm,
+  },
+  deteccionCard: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    backgroundColor: COLORS.white,
     borderRadius:    RADIUS.md,
     padding:         SPACING.md,
-    alignItems:      'center',
-    gap:             4,
-    elevation:       1,
+    gap:             SPACING.md,
   },
-  statEmoji:  { fontSize: 22 },
-  statNumero: {
-    fontSize:   FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.extrabold,
+  deteccionInfo: { flex: 1, gap: 2 },
+  deteccionEnfermedad: {
+    fontSize:   FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color:      COLORS.textPrimary,
   },
-  statLabel: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.textMuted,
+  deteccionParcela: {
+    fontSize: FONT_SIZE.sm,
+    color:    COLORS.textSecondary,
+  },
+  deteccionRight: {
+    alignItems: 'flex-end',
+    gap:        4,
+  },
+  deteccionBadge: { fontSize: 18 },
+  deteccionTiempo: {
+    fontSize:   FONT_SIZE.xs,
+    color:      COLORS.textMuted,
+  },
+  emptyDetecciones: {
+    backgroundColor: COLORS.white,
+    borderRadius:    RADIUS.lg,
+    padding:         SPACING.lg,
+    alignItems:     'center',
+    gap:             SPACING.sm,
+  },
+  emptyIcon:  { fontSize: 40 },
+  emptyText: {
+    fontSize:  FONT_SIZE.sm,
+    color:     COLORS.textSecondary,
+    textAlign: 'center',
   },
   accesoRow: {
     flexDirection: 'row',
@@ -293,7 +448,7 @@ const styles = StyleSheet.create({
   },
   accesoBtn: {
     flex:            1,
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: COLORS.white,
     borderRadius:    RADIUS.lg,
     padding:         SPACING.md,
     alignItems:      'center',

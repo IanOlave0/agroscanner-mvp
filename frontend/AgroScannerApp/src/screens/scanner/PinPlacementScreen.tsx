@@ -1,17 +1,17 @@
 /**
  * Pantalla de Colocación de Pin en Parcela
- * 
+ *
  * Flujo:
  * 1. Viene de ResultadoScreen tras análisis de IA
  * 2. Selecciona parcela de una lista
- * 3. Muestra mapa/canvas de la parcela con su polígono
+ * 3. Muestra polígono de la parcela (SVG)
  * 4. Usuario toca para colocar pin en planta enferma
  * 5. Verifica que pin esté dentro del polígono
  * 6. Guarda detección vinculada a parcela + coordenadas pin
- * 
+ *
  * PANTALLA CRÍTICA: Vincula detección → parcela → ubicación exacta
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import Svg, { Line, Circle } from 'react-native-svg';
 import { RootStackParams, ResultadoIA, Parcela, Usuario } from '../../types';
 import { COLORS, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../../constants';
 import { getParcelasByUsuario, getUsuarioActivo, insertDeteccion } from '../../database/queries';
@@ -41,11 +42,8 @@ type Props = {
 };
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 40, SCREEN_HEIGHT * 0.45);
+const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, SCREEN_HEIGHT * 0.4);
 
-/**
- * Posición del pin en el canvas
- */
 interface PinPosition {
   x: number;
   y: number;
@@ -59,15 +57,11 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
   const [parcelaSeleccionada, setParcelaSeleccionada] = useState<Parcela | null>(null);
   const [pin, setPin] = useState<PinPosition | null>(null);
   const [loading, setLoading] = useState(true);
-  const canvasRef = useRef<View>(null);
 
   useEffect(() => {
     cargarParcelas();
   }, []);
 
-  /**
-   * Carga las parcelas del usuario para seleccionar
-   */
   const cargarParcelas = async () => {
     try {
       const usuario = await getUsuarioActivo() as Usuario | null;
@@ -85,7 +79,7 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
 
       const lista = await getParcelasByUsuario(usuario.id);
       setParcelas(lista);
-      
+
       if (lista.length === 0) {
         Alert.alert(
           'Sin parcelas',
@@ -101,30 +95,19 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
     }
   };
 
-  /**
-   * Selecciona parcela y muestra su polígono
-   */
   const handleSeleccionarParcela = (p: Parcela) => {
     setParcelaSeleccionada(p);
-    setPin(null); // Reset pin al cambiar parcela
+    setPin(null);
   };
 
-  /**
-   * Maneja toque en canvas para colocar pin
-   */
   const handleCanvasTap = (event: any) => {
     if (!parcelaSeleccionada) return;
 
     const { locationX, locationY } = event.nativeEvent;
-    
-    // Obtener vértices de la parcela
+
     const vertices = parseGeometria(parcelaSeleccionada.geometria);
-    
-    // Calcular centroide para referencia
     const centroide = getCentroide(vertices);
-    
-    // Convertir posición en canvas a coordenadas (aproximación)
-    // En producción, esto usaría geolocalización real + posición relativa
+
     const lat = centroide.lat + (locationY - CANVAS_SIZE / 2) * 0.000001;
     const lng = centroide.lng + (locationX - CANVAS_SIZE / 2) * 0.000001;
 
@@ -135,7 +118,6 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
       lng,
     };
 
-    // Verificar que pin está dentro del polígono
     const dentro = puntoEnPoligono(vertices, { lat, lng });
     if (!dentro) {
       Alert.alert('Pin fuera de parcela', 'El pin debe estar dentro del polígono de la parcela');
@@ -145,9 +127,6 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
     setPin(newPin);
   };
 
-  /**
-   * Guarda la detección con pin y parcela
-   */
   const handleGuardar = async () => {
     if (!parcelaSeleccionada) {
       Alert.alert('Error', 'Selecciona una parcela');
@@ -166,13 +145,10 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
         return;
       }
 
-      // Determinar enfermedadId basado en resultado
-      // En producción, esto se obtendría de la BD o IA
-      const enfermedadId = resultado.resultado_positivo ? null : null; // TODO: Mapear correctamente
-      
-      // Generar ID único para detección
+      const enfermedadId = resultado.resultado_positivo ? null : null;
+
       const id = uuidv4();
-      
+
       await insertDeteccion(
         id,
         usuario.id,
@@ -180,11 +156,11 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
         cultivoId,
         enfermedadId,
         imagenUri,
-        resultado.confianza * 100, // Convertir 0-1 a 0-100
-        null, // latitud GPS (metadata)
-        null, // longitud GPS (metadata)
-        pin.lat, // pin_latitud
-        pin.lng  // pin_longitud
+        resultado.confianza * 100,
+        null,
+        null,
+        pin.lat,
+        pin.lng
       );
 
       Alert.alert(
@@ -198,16 +174,12 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
     }
   };
 
-  /**
-   * Renderiza el polígono de la parcela
-   */
   const renderParcela = () => {
     if (!parcelaSeleccionada) return null;
 
     const vertices = parseGeometria(parcelaSeleccionada.geometria);
     const centroide = getCentroide(vertices);
 
-    // Convertir vértices a posición en canvas (normalizado)
     const scaled = vertices.map((v) => ({
       x: (v.lng - centroide.lng) * 50000 + CANVAS_SIZE / 2,
       y: (v.lat - centroide.lat) * 50000 + CANVAS_SIZE / 2,
@@ -215,53 +187,63 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
 
     return (
       <View style={styles.canvasContainer}>
-        <Text style={styles.canvasTitle}>
-          {parcelaSeleccionada.alias}
-        </Text>
-        
-        <View 
-          style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-          ref={canvasRef}
-          onTouchEnd={handleCanvasTap}
-        >
-          {/* Polígono */}
-          {scaled.map((vertex, i) => {
-            if (i === 0) return null;
-            const prev = scaled[i - 1];
-            return (
-              <View
-                key={`line-${i}`}
-                style={[
-                  styles.line,
-                  {
-                    left: Math.min(vertex.x, prev.x),
-                    top: Math.min(vertex.y, prev.y),
-                    width: Math.abs(vertex.x - prev.x),
-                    height: Math.abs(vertex.y - prev.y),
-                  },
-                ]}
-              />
-            );
-          })}
+        <Text style={styles.canvasTitle}>{parcelaSeleccionada.alias}</Text>
 
-          {/* Pin */}
+        <View style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
+          <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
+            {scaled.map((v, i) => {
+              if (i === 0) return null;
+              const prev = scaled[i - 1];
+              return (
+                <Line
+                  key={`line-${i}`}
+                  x1={prev.x}
+                  y1={prev.y}
+                  x2={v.x}
+                  y2={v.y}
+                  stroke={COLORS.primary}
+                  strokeWidth={2}
+                />
+              );
+            })}
+
+            {scaled.length >= 3 && (
+              <Line
+                x1={scaled[scaled.length - 1].x}
+                y1={scaled[scaled.length - 1].y}
+                x2={scaled[0].x}
+                y2={scaled[0].y}
+                stroke={COLORS.primary}
+                strokeWidth={2}
+              />
+            )}
+
+            {pin && (
+              <Circle
+                cx={pin.x}
+                cy={pin.y}
+                r={12}
+                fill={COLORS.danger}
+                stroke={COLORS.white}
+                strokeWidth={2}
+              />
+            )}
+          </Svg>
+
           {pin && (
-            <View
-              style={[
-                styles.pin,
-                { left: pin.x - 15, top: pin.y - 30 },
-              ]}
-            >
-              <Text style={styles.pinIcon}>📍</Text>
+            <View style={[styles.pinMarker, { left: pin.x - 12, top: pin.y - 24 }]}>
+              <Text style={styles.pinMarkerText}>📍</Text>
             </View>
           )}
 
-          {/* Instrucción */}
           {!pin && (
-            <Text style={styles.canvasHint}>
-              Toca para colocar pin
-            </Text>
+            <Text style={styles.canvasHint}>Toca para colocar el pin</Text>
           )}
+
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={handleCanvasTap}
+          />
         </View>
       </View>
     );
@@ -289,75 +271,65 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
           <Text style={styles.title}>Ubicar Planta Enferma</Text>
         </View>
 
-      {/* Resultado IA resumen */}
-      <View style={styles.resultadoCard}>
-        <Text style={styles.resultadoTitle}>Resultado del análisis</Text>
-        <Text style={styles.resultadoText}>
-          Enfermedad: {resultado.enfermedad}
-        </Text>
-        <Text style={styles.resultadoText}>
-          Confianza: {(resultado.confianza * 100).toFixed(1)}%
-        </Text>
-      </View>
-
-      {/* Selección de parcela */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1. Selecciona la parcela</Text>
-        
-        {parcelas.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No tienes parcelas registradas
+        <View style={styles.resultadoCard}>
+          <Text style={styles.resultadoTitle}>Resultado del análisis</Text>
+          <Text style={styles.resultadoText}>Enfermedad: {resultado.enfermedad}</Text>
+          <Text style={styles.resultadoText}>
+            Confianza: {(resultado.confianza * 100).toFixed(1)}%
           </Text>
-        ) : (
-          <FlatList
-            data={parcelas}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.parcelaCard,
-                  parcelaSeleccionada?.id === item.id && styles.parcelaSelected,
-                ]}
-                onPress={() => handleSeleccionarParcela(item)}
-              >
-                <Text style={styles.parcelaName}>{item.alias}</Text>
-                <Text style={styles.parcelaArea}>
-                  {item.metros_cuadrados.toFixed(0)} m²
-                </Text>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.parcelaList}
-          />
-        )}
-      </View>
-
-      {/* Canvas para colocar pin */}
-      {parcelaSeleccionada && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Coloca el pin en la planta</Text>
-          {renderParcela()}
         </View>
-      )}
 
-      {/* Botón guardar */}
-      <View style={styles.buttonsSection}>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.primaryButton,
-            (!parcelaSeleccionada || !pin) && styles.disabledButton,
-          ]}
-          onPress={handleGuardar}
-          disabled={!parcelaSeleccionada || !pin}
-        >
-          <Text style={styles.primaryButtonText}>
-            Guardar Detección
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>1. Selecciona la parcela</Text>
+
+          {parcelas.length === 0 ? (
+            <Text style={styles.emptyText}>No tienes parcelas registradas</Text>
+          ) : (
+            <FlatList
+              data={parcelas}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.parcelaCard,
+                    parcelaSeleccionada?.id === item.id && styles.parcelaSelected,
+                  ]}
+                  onPress={() => handleSeleccionarParcela(item)}
+                >
+                  <Text style={styles.parcelaName}>{item.alias}</Text>
+                  <Text style={styles.parcelaArea}>
+                    {item.metros_cuadrados.toFixed(0)} m²
+                  </Text>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.parcelaList}
+            />
+          )}
+        </View>
+
+        {parcelaSeleccionada && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>2. Coloca el pin en la planta</Text>
+            {renderParcela()}
+          </View>
+        )}
+
+        <View style={styles.buttonsSection}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.primaryButton,
+              (!parcelaSeleccionada || !pin) && styles.disabledButton,
+            ]}
+            onPress={handleGuardar}
+            disabled={!parcelaSeleccionada || !pin}
+          >
+            <Text style={styles.primaryButtonText}>Guardar Detección</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -471,19 +443,14 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 2,
     borderColor: COLORS.border,
-    position: 'relative',
+    overflow: 'hidden',
   },
-  line: {
-    position: 'absolute',
-    backgroundColor: COLORS.primary + '60',
-    height: 2,
-  },
-  pin: {
+  pinMarker: {
     position: 'absolute',
     alignItems: 'center',
   },
-  pinIcon: {
-    fontSize: 30,
+  pinMarkerText: {
+    fontSize: 24,
   },
   canvasHint: {
     position: 'absolute',

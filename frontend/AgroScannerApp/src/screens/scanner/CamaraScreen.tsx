@@ -1,8 +1,27 @@
+/**
+ * Pantalla de Cámara para escaneo de cultivos
+ *
+ * Flujo:
+ * 1. Usuario selecciona cultivo en SeleccionCultivoScreen
+ * 2. Se muestra esta pantalla con preview de cámara (placeholder por ahora)
+ * 3. Usuario enfoca hoja dentro del marco
+ * 4. Presiona botón de captura
+ * 5. Simula análisis de IA (2 segundos)
+ * 6. Navega a ResultadoScreen con el resultado
+ *
+ * NOTA: La cámara real se integrará con react-native-camera en producción
+ */
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Alert, ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParams, ResultadoIA } from '../../types';
@@ -15,26 +34,17 @@ type Props = {
 
 const CamaraScreen = ({ navigation, route }: Props) => {
   const { cultivoId, cultivoNombre } = route.params;
+  const [analizando, setAnalizando] = useState(false);
 
-  const [analizando,   setAnalizando]   = useState(false);
-
-
-  // ── Simular captura de foto ───────────
-  // Aquí irá react-native-camera en producción
-  // Por ahora simulamos el flujo completo
   const handleCapturar = async () => {
     setAnalizando(true);
 
-    // Simular tiempo de análisis de la IA (< 3 seg según RNF06)
     await new Promise<void>((resolve) => setTimeout(resolve, 2000));
 
-    // Resultado simulado de la IA
-    // En producción vendrá del modelo TFLite
     const resultadoSimulado: ResultadoIA = getResultadoSimulado(cultivoId);
 
     setAnalizando(false);
 
-    // Navegar a pantalla de resultado
     navigation.navigate('Resultado', {
       resultado:  resultadoSimulado,
       imagenUri:  'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/640px-Hapus_Mango.jpg',
@@ -42,8 +52,6 @@ const CamaraScreen = ({ navigation, route }: Props) => {
     });
   };
 
-  // ── Abrir galería ─────────────────────
-  // Aquí irá react-native-image-picker
   const handleGaleria = () => {
     Alert.alert(
       'Seleccionar imagen',
@@ -52,81 +60,65 @@ const CamaraScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* ── Vista de cámara ── */}
-      {/* En producción aquí va el componente RNCamera */}
       <View style={styles.camaraArea}>
 
-        {/* Header sobre la cámara */}
+        {/* Header */}
         <View style={styles.camaraHeader}>
           <TouchableOpacity
             style={styles.btnBack}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.btnBackText}>✕</Text>
+            <Text style={styles.btnBackText}>X</Text>
           </TouchableOpacity>
           <View style={styles.cultivoBadge}>
-            <Text style={styles.cultivoBadgeText}>
-              Analizando: {cultivoNombre}
-            </Text>
+            <Text style={styles.cultivoBadgeText}>{cultivoNombre}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
 
-        {/* Marco de enfoque — guía al agricultor */}
-        <View style={styles.marcoContainer}>
-          <Text style={styles.instruccionTexto}>
-            Enfoca la hoja a la cámara
-          </Text>
+        {/* Instrucciones sobre el marco */}
+        <Text style={styles.instruccionTexto}>
+          Enfoca la hoja dentro del marco
+        </Text>
 
+        {/* Marco de enfoque */}
+        <View style={styles.marcoContainer}>
           <View style={styles.marco}>
-            {/* Esquinas del marco */}
             <View style={[styles.esquina, styles.esquinaTL]} />
             <View style={[styles.esquina, styles.esquinaTR]} />
             <View style={[styles.esquina, styles.esquinaBL]} />
             <View style={[styles.esquina, styles.esquinaBR]} />
-
-            {/* Placeholder de imagen */}
-            <View style={styles.camaraPlaceholder}>
-              <Text style={styles.camaraPlaceholderEmoji}>📷</Text>
-              <Text style={styles.camaraPlaceholderText}>
-                Vista de cámara
-              </Text>
-            </View>
           </View>
-
-          <Text style={styles.instruccionSub}>
-            Asegúrate de tener buena iluminación natural
-          </Text>
         </View>
+
+        {/* Tips debajo del marco */}
+        <Text style={styles.tipsTexto}>
+          Buena luz • Hoja centrada • Sin mover
+        </Text>
 
         {/* Overlay de análisis */}
         {analizando && (
           <View style={styles.analizandoOverlay}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.analizandoTitulo}>Analizando con IA...</Text>
-            <Text style={styles.analizandoSub}>
-              Esto tarda menos de 3 segundos
-            </Text>
+            <Text style={styles.analizandoTitulo}>Analizando...</Text>
+            <Text style={styles.analizandoSub}>Menos de 3 segundos</Text>
           </View>
         )}
 
         {/* Controles inferiores */}
         <View style={styles.controles}>
-
-          {/* Botón galería */}
           <TouchableOpacity
-            style={styles.btnGaleria}
+            style={styles.btnControl}
             onPress={handleGaleria}
             disabled={analizando}
           >
-            <Text style={styles.btnGaleriaEmoji}>🖼</Text>
-            <Text style={styles.btnGaleriaText}>Galería</Text>
+            <Text style={styles.btnControlText}>Galeria</Text>
           </TouchableOpacity>
 
-          {/* Botón captura principal — grande para uso en campo */}
           <TouchableOpacity
             style={[
               styles.btnCaptura,
@@ -139,44 +131,17 @@ const CamaraScreen = ({ navigation, route }: Props) => {
             <View style={styles.btnCapturaInner} />
           </TouchableOpacity>
 
-          {/* Flash */}
-          <TouchableOpacity style={styles.btnFlash} disabled={analizando}>
-            <Text style={styles.btnFlashEmoji}>⚡</Text>
-            <Text style={styles.btnFlashText}>Flash</Text>
+          <TouchableOpacity style={styles.btnControl} disabled={analizando}>
+            <Text style={styles.btnControlText}>Flash</Text>
           </TouchableOpacity>
-
         </View>
 
       </View>
-
-      {/* ── Instrucciones rápidas ── */}
-      <View style={styles.instrucciones}>
-        <InstruccionItem emoji="🍃" texto="Una sola hoja" />
-        <InstruccionItem emoji="☀️" texto="Buena luz" />
-        <InstruccionItem emoji="📐" texto="Hoja centrada" />
-        <InstruccionItem emoji="✋" texto="Sin mover" />
-      </View>
-
-    </View>
+    </SafeAreaView>
   );
 };
 
-// ── Componente instrucción ────────────────
-const InstruccionItem = ({
-  emoji,
-  texto,
-}: {
-  emoji: string;
-  texto: string;
-}) => (
-  <View style={styles.instruccionItem}>
-    <Text style={styles.instruccionEmoji}>{emoji}</Text>
-    <Text style={styles.instruccionItemTexto}>{texto}</Text>
-  </View>
-);
-
 // ── Resultado simulado según cultivo ──────
-// En producción esto viene del modelo TFLite
 const getResultadoSimulado = (cultivoId: number): ResultadoIA => {
   const resultados: Record<number, ResultadoIA> = {
     1: {
@@ -216,15 +181,13 @@ const styles = StyleSheet.create({
   camaraArea: {
     flex:            1,
     backgroundColor: '#111',
-    position:        'relative',
   },
   camaraHeader: {
     flexDirection:     'row',
     justifyContent:    'space-between',
     alignItems:        'center',
     paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.xl,
-    paddingBottom:     SPACING.md,
+    paddingVertical:   SPACING.md,
   },
   btnBack: {
     width:           44,
@@ -253,27 +216,24 @@ const styles = StyleSheet.create({
     fontWeight: FONT_WEIGHT.semibold,
   },
 
+  // ── Instrucciones
+  instruccionTexto: {
+    fontSize:          FONT_SIZE.sm,
+    color:             COLORS.white,
+    textAlign:         'center',
+    marginBottom:      SPACING.sm,
+  },
+
   // ── Marco de enfoque
   marcoContainer: {
     flex:           1,
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            SPACING.md,
-  },
-  instruccionTexto: {
-    fontSize:          FONT_SIZE.sm,
-    color:             COLORS.white,
-    backgroundColor:   'rgba(0,0,0,0.5)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.xs,
-    borderRadius:      RADIUS.full,
   },
   marco: {
     width:         260,
     height:        260,
     position:      'relative',
-    alignItems:    'center',
-    justifyContent: 'center',
   },
   esquina: {
     position:    'absolute',
@@ -286,28 +246,19 @@ const styles = StyleSheet.create({
   esquinaTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
   esquinaBL: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
   esquinaBR: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
-  camaraPlaceholder: {
-    width:          220,
-    height:         220,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            SPACING.sm,
-  },
-  camaraPlaceholderEmoji: { fontSize: 48 },
-  camaraPlaceholderText: {
-    fontSize: FONT_SIZE.sm,
-    color:    'rgba(255,255,255,0.5)',
-  },
-  instruccionSub: {
-    fontSize: FONT_SIZE.xs,
-    color:    'rgba(255,255,255,0.6)',
+
+  // ── Tips
+  tipsTexto: {
+    fontSize:   FONT_SIZE.xs,
+    color:      'rgba(255,255,255,0.5)',
+    textAlign:  'center',
+    marginTop:  SPACING.sm,
   },
 
   // ── Overlay analizando
   analizandoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     alignItems:      'center',
     justifyContent:  'center',
     gap:             SPACING.md,
@@ -329,16 +280,16 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     paddingVertical:   SPACING.xl,
     paddingHorizontal: SPACING.xl,
-    backgroundColor:   'rgba(0,0,0,0.5)',
+    backgroundColor:   'rgba(0,0,0,0.3)',
   },
-  btnGaleria: {
+  btnControl: {
     alignItems: 'center',
-    gap:        4,
+    minWidth:   60,
   },
-  btnGaleriaEmoji: { fontSize: 28 },
-  btnGaleriaText: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.white,
+  btnControlText: {
+    fontSize:   FONT_SIZE.sm,
+    color:      COLORS.white,
+    fontWeight: FONT_WEIGHT.medium,
   },
   btnCaptura: {
     width:           80,
@@ -357,32 +308,5 @@ const styles = StyleSheet.create({
     height:          60,
     borderRadius:    RADIUS.full,
     backgroundColor: COLORS.white,
-  },
-  btnFlash: {
-    alignItems: 'center',
-    gap:        4,
-  },
-  btnFlashEmoji: { fontSize: 28 },
-  btnFlashText: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.white,
-  },
-
-  // ── Instrucciones rápidas
-  instrucciones: {
-    flexDirection:     'row',
-    justifyContent:    'space-around',
-    backgroundColor:   COLORS.bgCard,
-    paddingVertical:   SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-  instruccionItem: {
-    alignItems: 'center',
-    gap:        4,
-  },
-  instruccionEmoji: { fontSize: 20 },
-  instruccionItemTexto: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.textSecondary,
   },
 });

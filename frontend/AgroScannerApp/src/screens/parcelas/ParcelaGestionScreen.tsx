@@ -11,7 +11,8 @@
  * Sin cuenta: Se redirige a pantalla de registro
  */
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams, Parcela, Usuario } from '../../types';
 import { COLORS, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../../constants';
@@ -153,14 +154,18 @@ export default function ParcelaGestionScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Cargando parcelas...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando parcelas...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -168,7 +173,7 @@ export default function ParcelaGestionScreen({ navigation }: Props) {
         </TouchableOpacity>
         <Text style={styles.title}>Mis Parcelas</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleCrearParcela}>
-          <Text style={styles.addButtonText}>+ Nueva Parcela</Text>
+          <Text style={styles.addButtonText}>+ Nueva</Text>
         </TouchableOpacity>
       </View>
 
@@ -198,7 +203,7 @@ export default function ParcelaGestionScreen({ navigation }: Props) {
           contentContainerStyle={styles.list}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -206,6 +211,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     padding: SPACING.lg,

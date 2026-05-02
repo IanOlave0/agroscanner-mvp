@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 // CORRECCIÓN: Se eliminó 'CULTIVOS' de la importación para evitar el error de variable no usada
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
 
@@ -55,7 +56,7 @@ const HistorialScreen = () => {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
       <ScrollView
@@ -131,7 +132,7 @@ const HistorialScreen = () => {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

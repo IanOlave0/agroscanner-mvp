@@ -29,8 +29,10 @@ import {
   Alert,
   TextInput,
   ScrollView,
-  Pressable
+  Pressable,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import Svg, { Line, Circle, Polygon as SvgPolygon } from 'react-native-svg';
@@ -319,7 +321,8 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Volver</Text>
@@ -329,7 +332,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
         </Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -408,7 +411,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -419,7 +422,6 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    paddingTop: SPACING.xl,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,

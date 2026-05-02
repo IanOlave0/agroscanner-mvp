@@ -8,6 +8,7 @@ import {
   StatusBar,
   Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
@@ -31,7 +32,7 @@ const ResultadoScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.danger} />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { backgroundColor: COLORS.danger }]}>
@@ -69,7 +70,7 @@ const ResultadoScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import {
@@ -27,7 +28,7 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
       <ScrollView
@@ -101,7 +102,7 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
         </View>
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

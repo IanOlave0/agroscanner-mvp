@@ -12,16 +12,18 @@
  * PANTALLA CRÍTICA: Vincula detección → parcela → ubicación exacta
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
   Alert,
   ScrollView,
-  FlatList
+  FlatList,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParams, ResultadoIA, Parcela, Usuario } from '../../types';
@@ -267,20 +269,25 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Cargando parcelas...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando parcelas...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Ubicar Planta Enferma</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← Volver</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Ubicar Planta Enferma</Text>
+        </View>
 
       {/* Resultado IA resumen */}
       <View style={styles.resultadoCard}>
@@ -351,6 +358,7 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -358,6 +366,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     padding: SPACING.lg,

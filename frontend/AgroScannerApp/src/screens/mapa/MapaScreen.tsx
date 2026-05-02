@@ -8,6 +8,7 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
 
 const { width } = Dimensions.get('window');
@@ -57,7 +58,7 @@ const MapaScreen = () => {
   const [vistaActiva, setVistaActiva] = useState<'mapa' | 'lista'>('mapa');
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
       <ScrollView
@@ -202,7 +203,7 @@ const MapaScreen = () => {
         </View>
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

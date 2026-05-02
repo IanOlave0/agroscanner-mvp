@@ -70,11 +70,7 @@ const HomeScreen = () => {
     }
   };
 
-  const handleAgregarParcela = () => {
-    stackNavigation.navigate('ParcelaCanvas', { parcelaId: undefined });
-  };
-
-  const handleVerTodasParcelas = () => {
+  const handleIrAGestionParcelas = () => {
     stackNavigation.navigate('ParcelaGestion');
   };
 
@@ -147,18 +143,24 @@ const HomeScreen = () => {
         {/* ── Lista de parcelas ── */}
         <View style={styles.panelParcelas}>
           <TouchableOpacity
-            style={styles.botonAgregar}
-            onPress={handleAgregarParcela}
-            activeOpacity={0.85}
+            style={styles.panelHeader}
+            onPress={handleIrAGestionParcelas}
+            activeOpacity={0.7}
           >
-            <Text style={styles.botonAgregarIcon}>➕</Text>
-            <Text style={styles.botonAgregarTexto}>Agregar parcela</Text>
+            <View style={styles.panelHeaderLeft}>
+              <Text style={styles.panelIcon}>🌱</Text>
+              <Text style={styles.panelTitulo}>Mis Parcelas</Text>
+            </View>
+            <Text style={styles.panelFlecha}>›</Text>
           </TouchableOpacity>
 
           {parcelas.length === 0 ? (
             <View style={styles.emptyParcelas}>
               <Text style={styles.emptyParcelasText}>
                 Sin parcelas registradas
+              </Text>
+              <Text style={styles.emptyParcelasSub}>
+                Toca "Mis Parcelas" para crear tu primera parcela
               </Text>
             </View>
           ) : (
@@ -172,27 +174,19 @@ const HomeScreen = () => {
                     onPress={() => handleEditarParcela(parcela.id)}
                     activeOpacity={0.7}
                   >
+                    <View style={styles.parcelaIconContainer}>
+                      <Text style={styles.parcelaIcon}>📍</Text>
+                    </View>
                     <View style={styles.parcelaInfo}>
                       <Text style={styles.parcelaNombre}>{parcela.alias}</Text>
                       <Text style={styles.parcelaMeta}>
-                        {vertices.length} vérticos · {formatearArea(parcela.metros_cuadrados)}
+                        {vertices.length} vértices · {formatearArea(parcela.metros_cuadrados)}
                       </Text>
                     </View>
                     <Text style={styles.parcelaFlecha}>›</Text>
                   </TouchableOpacity>
                 );
               })}
-
-              {hayMasParcelas && (
-                <TouchableOpacity
-                  style={styles.verTodasBtn}
-                  onPress={handleVerTodasParcelas}
-                >
-                  <Text style={styles.verTodasText}>
-                    Ver todas ({parcelas.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
             </>
           )}
         </View>
@@ -336,43 +330,73 @@ const styles = StyleSheet.create({
   panelParcelas: {
     backgroundColor: COLORS.white,
     borderRadius:    RADIUS.lg,
-    padding:         SPACING.md,
-    gap:             SPACING.sm,
+    overflow:        'hidden',
     shadowColor:     '#000',
     shadowOffset:    { width: 0, height: 2 },
     shadowOpacity:   0.1,
     shadowRadius:    4,
     elevation:       3,
   },
-  botonAgregar: {
+  panelHeader: {
     flexDirection:   'row',
     alignItems:      'center',
-    justifyContent:  'center',
+    justifyContent:  'space-between',
     backgroundColor: COLORS.primary,
-    borderRadius:    RADIUS.md,
-    padding:         SPACING.md,
-    gap:             SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
-  botonAgregarIcon:  { fontSize: 20 },
-  botonAgregarTexto: {
+  panelHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  panelIcon: {
+    fontSize: 20,
+  },
+  panelTitulo: {
     fontSize:   FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
     color:      COLORS.white,
   },
+  panelFlecha: {
+    fontSize:   FONT_SIZE.xl,
+    color:      COLORS.white,
+    fontWeight: FONT_WEIGHT.bold,
+  },
   emptyParcelas: {
-    paddingVertical: SPACING.md,
+    padding: SPACING.lg,
     alignItems: 'center',
+    backgroundColor: COLORS.bgPrimary,
+    gap: SPACING.xs,
   },
   emptyParcelasText: {
     fontSize: FONT_SIZE.sm,
     color:    COLORS.textMuted,
   },
+  emptyParcelasSub: {
+    fontSize:   FONT_SIZE.xs,
+    color:      COLORS.textMuted,
+    textAlign:  'center',
+  },
   parcelaItem: {
     flexDirection:   'row',
     alignItems:      'center',
     backgroundColor: COLORS.bgPrimary,
-    borderRadius:    RADIUS.md,
     padding:         SPACING.md,
+    gap:             SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  parcelaIconContainer: {
+    width:         36,
+    height:        36,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.bgGreen,
+    alignItems:   'center',
+    justifyContent: 'center',
+  },
+  parcelaIcon: {
+    fontSize: 18,
   },
   parcelaInfo: { flex: 1 },
   parcelaNombre: {
@@ -389,15 +413,6 @@ const styles = StyleSheet.create({
     fontSize:   FONT_SIZE.xl,
     color:      COLORS.textMuted,
     fontWeight: FONT_WEIGHT.bold,
-  },
-  verTodasBtn: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  verTodasText: {
-    fontSize:   FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.medium,
-    color:      COLORS.primary,
   },
   deteccionesContainer: {
     gap: SPACING.sm,

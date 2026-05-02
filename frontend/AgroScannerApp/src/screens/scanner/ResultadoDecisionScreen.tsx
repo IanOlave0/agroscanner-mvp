@@ -11,7 +11,8 @@
  * - Solo usuarios con cuenta y parcelas pueden geolocalizar detecciones
  */
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParams, ResultadoIA } from '../../types';
@@ -195,19 +196,23 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Verificando tu cuenta...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {flujo === 'sin_cuenta' && renderSinCuenta()}
-      {flujo === 'sin_parcelas' && renderSinParcelas()}
-      {flujo === 'con_parcelas' && renderConParcelas()}
-    </ScrollView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" />
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {flujo === 'sin_cuenta' && renderSinCuenta()}
+        {flujo === 'sin_parcelas' && renderSinParcelas()}
+        {flujo === 'con_parcelas' && renderConParcelas()}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -215,6 +220,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

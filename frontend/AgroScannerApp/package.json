@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@tamagui/babel-plugin": "^2.0.0-rc.41",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "^55.0.18",
     "typescript": "~5.9.2"

@@ -1,11 +1,29 @@
+/**
+ * @file src/navigation/index.tsx
+ * @description Configuración central de navegación de AgroScanner.
+ * Define dos niveles de navegación:
+ * - Stack Navigator (raíz): gestiona flujos completos (Auth, Scanner, Parcelas).
+ * - Bottom Tab Navigator: navegación principal entre secciones de la app.
+ *
+ * Migración UI/UX: los íconos de tabs fueron migrados de emojis nativos a
+ * iconos vectoriales SVG de Lucide React Native para mayor consistencia visual.
+ *
+ * @author AgroScanner Team
+ */
+
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
+
+// ── Iconos vectoriales (Lucide React Native) ───────────────────────
+// NOTA: requiere react-native-svg (ya incluido en dependencias).
+import { Home, ScanLine, ClipboardList, Map, User } from 'lucide-react-native';
+
 import { RootStackParams } from '../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from '../constants';
 
-// ── Importar pantallas ────────────────────
+// ── Importación de pantallas ───────────────────────────────────────
 
 // Auth
 import WelcomeScreen  from '../screens/auth/WelcomeScreen';
@@ -17,11 +35,11 @@ import HomeScreen   from '../screens/main/HomeScreen';
 import PerfilScreen from '../screens/main/PerfilScreen';
 
 // Scanner
-import SeleccionCultivoScreen from '../screens/scanner/SeleccionCultivoScreen';
-import CamaraScreen           from '../screens/scanner/CamaraScreen';
-import ResultadoScreen        from '../screens/scanner/ResultadoScreen';
+import SeleccionCultivoScreen  from '../screens/scanner/SeleccionCultivoScreen';
+import CamaraScreen            from '../screens/scanner/CamaraScreen';
+import ResultadoScreen         from '../screens/scanner/ResultadoScreen';
 import ResultadoDecisionScreen from '../screens/scanner/ResultadoDecisionScreen';
-import PinPlacementScreen     from '../screens/scanner/PinPlacementScreen';
+import PinPlacementScreen      from '../screens/scanner/PinPlacementScreen';
 
 // Historial
 import HistorialScreen from '../screens/historial/HistorialScreen';
@@ -33,22 +51,29 @@ import MapaScreen from '../screens/mapa/MapaScreen';
 import ParcelaGestionScreen from '../screens/parcelas/ParcelaGestionScreen';
 import ParcelaCanvasScreen  from '../screens/parcelas/ParcelaCanvasScreen';
 
-// ── Navegadores ───────────────────────────
+// ── Instanciación de navegadores ───────────────────────────────────
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab   = createBottomTabNavigator();
 
-// ── Ícono de tab ──────────────────────────
+// ── Componente de ícono de tab ─────────────────────────────────────
+/**
+ * Renderiza un ícono vectorial de Lucide + etiqueta para cada tab del bottom navigator.
+ *
+ * @param icon   Componente de ícono de lucide-react-native.
+ * @param label  Texto descriptivo de la pestaña.
+ * @param focused Indica si la pestaña está activa (afecta color del ícono y texto).
+ */
 const TabIcon = ({
-  emoji,
+  icon: Icon,
   label,
   focused,
 }: {
-  emoji:   string;
+  icon:    React.ElementType;
   label:   string;
   focused: boolean;
 }) => (
   <View style={styles.tabItem}>
-    <Text style={styles.tabEmoji}>{emoji}</Text>
+    <Icon size={22} color={focused ? COLORS.primary : COLORS.textMuted} />
     <Text style={[
       styles.tabLabel,
       { color: focused ? COLORS.primary : COLORS.textMuted },
@@ -58,13 +83,13 @@ const TabIcon = ({
   </View>
 );
 
-// ── Tab Navigator ─────────────────────────
+// ── Tab Navigator (navegación principal) ───────────────────────────
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
       headerShown:     false,
       tabBarStyle:     styles.tabBar,
-      tabBarShowLabel: false,
+      tabBarShowLabel: false, // Se usa componente personalizado para ícono + label
     }}
   >
     <Tab.Screen
@@ -72,7 +97,7 @@ const MainTabs = () => (
       component={HomeScreen}
       options={{
         tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="🏠" label="Inicio" focused={focused} />
+          <TabIcon icon={Home} label="Inicio" focused={focused} />
         ),
       }}
     />
@@ -81,7 +106,7 @@ const MainTabs = () => (
       component={SeleccionCultivoScreen}
       options={{
         tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="📷" label="Escanear" focused={focused} />
+          <TabIcon icon={ScanLine} label="Escanear" focused={focused} />
         ),
       }}
     />
@@ -90,7 +115,7 @@ const MainTabs = () => (
       component={HistorialScreen}
       options={{
         tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="📋" label="Historial" focused={focused} />
+          <TabIcon icon={ClipboardList} label="Historial" focused={focused} />
         ),
       }}
     />
@@ -99,7 +124,7 @@ const MainTabs = () => (
       component={MapaScreen}
       options={{
         tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="🗺️" label="Mapa" focused={focused} />
+          <TabIcon icon={Map} label="Mapa" focused={focused} />
         ),
       }}
     />
@@ -108,43 +133,43 @@ const MainTabs = () => (
       component={PerfilScreen}
       options={{
         tabBarIcon: ({ focused }) => (
-          <TabIcon emoji="👤" label="Perfil" focused={focused} />
+          <TabIcon icon={User} label="Perfil" focused={focused} />
         ),
       }}
     />
   </Tab.Navigator>
 );
 
-// ── Stack Navigator principal ─────────────
+// ── Stack Navigator (raíz) ─────────────────────────────────────────
 const AppNavigation = () => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
     initialRouteName="Welcome"
   >
-    {/* Auth */}
+    {/* ── Flujo de autenticación ─────────────────────────────────── */}
     <Stack.Screen name="Welcome"  component={WelcomeScreen} />
     <Stack.Screen name="Login"    component={LoginScreen} />
     <Stack.Screen name="Registro" component={RegistroScreen} />
 
-    {/* App principal */}
+    {/* ── Aplicación principal (tabs) ────────────────────────────── */}
     <Stack.Screen name="Home" component={MainTabs} />
 
-    {/* Scanner flow */}
-    <Stack.Screen name="SeleccionCultivo" component={SeleccionCultivoScreen} />
-    <Stack.Screen name="Camara"           component={CamaraScreen} />
-    <Stack.Screen name="Resultado"        component={ResultadoScreen} />
+    {/* ── Flujo de escaneo (scanner) ─────────────────────────────── */}
+    <Stack.Screen name="SeleccionCultivo"  component={SeleccionCultivoScreen} />
+    <Stack.Screen name="Camara"            component={CamaraScreen} />
+    <Stack.Screen name="Resultado"         component={ResultadoScreen} />
     <Stack.Screen name="ResultadoDecision" component={ResultadoDecisionScreen} />
-    <Stack.Screen name="PinPlacement"     component={PinPlacementScreen} />
+    <Stack.Screen name="PinPlacement"      component={PinPlacementScreen} />
 
-    {/* Parcelas flow */}
-    <Stack.Screen name="ParcelaGestion"   component={ParcelaGestionScreen} />
-    <Stack.Screen name="ParcelaCanvas"    component={ParcelaCanvasScreen} />
+    {/* ── Flujo de gestión de parcelas ───────────────────────────── */}
+    <Stack.Screen name="ParcelaGestion" component={ParcelaGestionScreen} />
+    <Stack.Screen name="ParcelaCanvas"  component={ParcelaCanvasScreen} />
   </Stack.Navigator>
 );
 
 export default AppNavigation;
 
-// ── Estilos ───────────────────────────────
+// ── Estilos nativos (tab bar aún usa StyleSheet por compatibilidad) ─
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.white,
@@ -157,9 +182,6 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     gap:        4,
-  },
-  tabEmoji: {
-    fontSize: 22,
   },
   tabLabel: {
     fontSize:   FONT_SIZE.xs,

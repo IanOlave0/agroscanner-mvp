@@ -131,7 +131,7 @@ const LoginScreen = ({ navigation }: Props) => {
           onPress={() => navigation.navigate('Home')}
           activeOpacity={0.85}
         >
-          <Text style={styles.btnGuestText}>📷  Escanear sin cuenta</Text>
+          <Text style={styles.btnGuestText}>Escanear sin cuenta</Text>
         </TouchableOpacity>
 
       </ScrollView>

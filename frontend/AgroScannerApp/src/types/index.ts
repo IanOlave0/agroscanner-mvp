@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────
 export interface Usuario {
   id:           string;
+  nombre:       string;
   email:        string;
   token:        string;
   zona_agricola?: string;

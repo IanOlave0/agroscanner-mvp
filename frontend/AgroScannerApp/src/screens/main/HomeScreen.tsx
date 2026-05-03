@@ -1,33 +1,40 @@
 /**
- * Pantalla Home - Panel de control del agricultor
+ * @file src/screens/main/HomeScreen.tsx
+ * @description Pantalla principal (Home) - Panel de control del agricultor.
+ * Muestra parcelas registradas, detecciones recientes con nivel de riesgo
+ * y accesos rápidos a funciones principales.
  *
- * Muestra:
- * - Lista de parcelas del usuario
- * - Últimas 3 detecciones con enfermedad y parcela
- * - Acceso rápido a funciones principales
+ * Migración UI/UX:
+ * - Layout reemplazado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
+ * - Tipografía utiliza tokens de color de Tamagui; fontSize usa valores numéricos
+ *   (compatibilidad con Tamagui v3 RC).
+ * - Iconos de emojis migrados a vectoriales de Lucide React Native.
+ * - ScrollView de RN se mantiene (Tamagui no expone ScrollView nativo estable).
  *
- * ACCESO: Solo usuarios autenticados
+ * @author AgroScanner Team
  */
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Alert,
+  ScrollView, StatusBar, TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, CULTIVOS } from '../../constants';
+import { YStack, XStack, Text } from 'tamagui';
+import {
+  User, WifiOff, Sprout, MapPin, ChevronRight,
+  CheckCircle2, AlertCircle, AlertTriangle,
+  SearchX, ClipboardList, Map as MapIcon,
+} from 'lucide-react-native';
+
+import { COLORS, SHADOW } from '../../constants';
 import { getParcelasByUsuario, getDeteccionesByUsuario, getUsuarioActivo } from '../../database/queries';
-import { Parcela, Deteccion, Usuario } from '../../types';
-import { RootStackParams } from '../../types';
+import { Parcela, Deteccion, Usuario, RootStackParams } from '../../types';
 import { formatearArea, parseGeometria } from '../../utils/geometria';
 
+// ── Tipos de navegación ────────────────────────────────────────────
 type TabParams = {
   Home: undefined;
   Scanner: undefined;
@@ -36,11 +43,13 @@ type TabParams = {
   Perfil: undefined;
 };
 
+// ── Componente principal ───────────────────────────────────────────
 const HomeScreen = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParams>>();
   const stackNavigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
+  const [usuarioActivo, setUsuarioActivo] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -49,12 +58,18 @@ const HomeScreen = () => {
     }, [])
   );
 
+  /**
+   * Carga de forma asíncrona las parcelas y detecciones del usuario activo.
+   * Se ejecuta al enfocar la pantalla (useFocusEffect).
+   */
   const cargarDatos = async () => {
     try {
       const usuario = await getUsuarioActivo() as Usuario | null;
       if (!usuario) {
         return;
       }
+
+      setUsuarioActivo(usuario);
 
       const [listaParcelas, listaDetecciones] = await Promise.all([
         getParcelasByUsuario(usuario.id),
@@ -64,7 +79,7 @@ const HomeScreen = () => {
       setParcelas(listaParcelas);
       setDetecciones(listaDetecciones);
     } catch (error) {
-      console.error('[Home] Error cargando datos:', error);
+      console.error('[HomeScreen] Error cargando datos:', error);
     } finally {
       setLoading(false);
     }
@@ -78,404 +93,282 @@ const HomeScreen = () => {
     stackNavigation.navigate('ParcelaCanvas', { parcelaId: id });
   };
 
-  const getNivelRiesgoBadge = (deteccion: Deteccion) => {
-    if (!deteccion.enfermedad_id) {
-      return { emoji: '🟢', texto: 'Sano' };
-    }
-    if (deteccion.nivel_confianza >= 80) {
-      return { emoji: '🔴', texto: 'Alto' };
-    }
-    return { emoji: '🟡', texto: 'Medio' };
-  };
+  // ── Efecto Typewriter para el nombre del usuario ───────────────────
+  const [displayedNombre, setDisplayedNombre] = useState('');
 
+  useEffect(() => {
+    const nombreCompleto = usuarioActivo?.nombre || 'Invitado';
+    setDisplayedNombre('');
+    let index = 0;
+
+    const interval = setInterval(() => {
+      if (index < nombreCompleto.length) {
+        setDisplayedNombre(nombreCompleto.slice(0, index + 1));
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [usuarioActivo?.nombre]);
+
+  const parcelasVisibles = parcelas.slice(0, 3);
+  const deteccionesRecientes = detecciones.slice(0, 3);
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack px="$lg" pt="$md" pb="$xxl" gap="$md">
+
+          {/* ── Header: saludo typewriter + acceso a perfil ──────── */}
+          <XStack justifyContent="space-between" alignItems="flex-start" mb="$xs">
+            <YStack>
+              <Text fontSize={16} color="$textSecondary">
+                Bienvenido,
+              </Text>
+              <Text fontSize={28} fontWeight="800" color="$textPrimary" lineHeight={36} mt="$xs" height={36}>
+                {displayedNombre}
+                <Text fontSize={28} fontWeight="800" color="$primary">
+                  {'|'}
+                </Text>
+              </Text>
+            </YStack>
+            <TouchableOpacity onPress={() => navigation.navigate('Perfil')} activeOpacity={0.7}>
+              <YStack width={48} height={48} borderRadius="$full" bg="$bgGreen" borderWidth={2} borderColor="$primary" alignItems="center" justifyContent="center">
+                <User size={22} color={COLORS.primary} />
+              </YStack>
+            </TouchableOpacity>
+          </XStack>
+
+          {/* ── Banner: modo sin conexión ────────────────────────── */}
+          <XStack alignItems="center" bg="$bgGreen" borderRadius="$md" p="$md" gap="$md" borderWidth={1} borderColor="$primaryLight">
+            <WifiOff size={28} color={COLORS.primary} />
+            <YStack flex={1}>
+              <Text fontSize={16} fontWeight="600" color="$primary">
+                Modo sin conexión disponible
+              </Text>
+              <Text fontSize={14} color="$textSecondary">
+                La IA funciona directo en tu celular
+              </Text>
+            </YStack>
+          </XStack>
+
+          {/* ── Panel: Mis Parcelas ──────────────────────────────── */}
+          <YStack bg="$white" borderRadius="$lg" overflow="hidden" style={SHADOW.md}>
+            {/* Cabecera del panel */}
+            <TouchableOpacity onPress={handleIrAGestionParcelas} activeOpacity={0.7}>
+              <XStack alignItems="center" justifyContent="space-between" bg="$primary" py="$md" px="$lg">
+                <XStack alignItems="center" gap="$sm">
+                  <Sprout size={20} color={COLORS.white} />
+                  <Text fontSize={16} fontWeight="600" color="$white">
+                    Mis Parcelas
+                  </Text>
+                </XStack>
+                <ChevronRight size={20} color={COLORS.white} />
+              </XStack>
+            </TouchableOpacity>
+
+            {/* Contenido: lista o vacío */}
+            {parcelas.length === 0 ? (
+              <YStack p="$lg" alignItems="center" bg="$bgPrimary" gap="$xs">
+                <Text fontSize={14} color="$textMuted">
+                  Sin parcelas registradas
+                </Text>
+                <Text fontSize={12} color="$textMuted" textAlign="center">
+                  Toca "Mis Parcelas" para crear tu primera parcela
+                </Text>
+              </YStack>
+            ) : (
+              <>
+                {parcelasVisibles.map((parcela) => (
+                  <ParcelaRow
+                    key={parcela.id}
+                    parcela={parcela}
+                    onPress={() => handleEditarParcela(parcela.id)}
+                  />
+                ))}
+              </>
+            )}
+          </YStack>
+
+          {/* ── Sección: Detecciones recientes ───────────────────── */}
+          {deteccionesRecientes.length > 0 ? (
+            <>
+              <Text fontSize={18} fontWeight="700" color="$textPrimary" mt="$xs">
+                Detecciones recientes
+              </Text>
+              <YStack gap="$sm">
+                {deteccionesRecientes.map((deteccion) => (
+                  <DeteccionCard key={deteccion.id} deteccion={deteccion} />
+                ))}
+              </YStack>
+            </>
+          ) : (
+            <YStack bg="$white" borderRadius="$lg" p="$lg" alignItems="center" gap="$sm">
+              <SearchX size={40} color={COLORS.textMuted} />
+              <Text fontSize={14} color="$textSecondary" textAlign="center">
+                Sin detecciones aún. Ve a "Escanear" para comenzar.
+              </Text>
+            </YStack>
+          )}
+
+          {/* ── Sección: Acceso rápido ───────────────────────────── */}
+          <Text fontSize={18} fontWeight="700" color="$textPrimary" mt="$xs">
+            Acceso rápido
+          </Text>
+          <XStack gap="$sm">
+            <AccesoRapidoBtn
+              icon={ClipboardList}
+              label="Ver historial"
+              onPress={() => navigation.navigate('Historial')}
+            />
+            <AccesoRapidoBtn
+              icon={MapIcon}
+              label="Mapa de calor"
+              onPress={() => navigation.navigate('Mapa')}
+            />
+          </XStack>
+
+        </YStack>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// ── Subcomponente: Fila de parcela ─────────────────────────────────
+/**
+ * Renderiza una fila de parcela con ícono, alias, metadatos y flecha.
+ *
+ * @param parcela  Datos de la parcela a mostrar.
+ * @param onPress  Handler al tocar la fila.
+ */
+const ParcelaRow = ({ parcela, onPress }: { parcela: Parcela; onPress: () => void }) => {
+  const vertices = parseGeometria(parcela.geometria);
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <XStack alignItems="center" bg="$bgPrimary" p="$md" gap="$sm" borderBottomWidth={1} borderBottomColor="$border">
+        <YStack width={36} height={36} borderRadius="$md" bg="$bgGreen" alignItems="center" justifyContent="center">
+          <MapPin size={18} color={COLORS.primary} />
+        </YStack>
+        <YStack flex={1}>
+          <Text fontSize={16} fontWeight="600" color="$textPrimary">
+            {parcela.alias}
+          </Text>
+          <Text fontSize={14} color="$textSecondary" mt={2}>
+            {vertices.length} vértices · {formatearArea(parcela.metros_cuadrados)}
+          </Text>
+        </YStack>
+        <ChevronRight size={20} color={COLORS.textMuted} />
+      </XStack>
+    </TouchableOpacity>
+  );
+};
+
+// ── Subcomponente: Card de detección ───────────────────────────────
+/**
+ * Renderiza una card de detección reciente con nivel de riesgo visual.
+ *
+ * @param deteccion  Datos de la detección a mostrar.
+ */
+const DeteccionCard = ({ deteccion }: { deteccion: Deteccion }) => {
+  const { icon: RiesgoIcon, color: riesgoColor, texto: riesgoTexto } = getNivelRiesgoMeta(deteccion);
+
+  /**
+   * Formatea una fecha relativa desde un timestamp ISO/UTC.
+   * SQLite almacena fechas en UTC (datetime('now')).
+   * Se normaliza el string a ISO 8601 con 'Z' para forzar interpretación UTC
+   * y evitar desfases por zona horaria del dispositivo.
+   *
+   * @param fechaStr Timestamp en formato 'YYYY-MM-DD HH:MM:SS' (SQLite) u ISO.
+   * @returns Cadena legible como "hace Xm", "hace Xh", "hace Xd" o fecha local.
+   */
   const formatFechaRelativa = (fechaStr: string) => {
-    const fecha = new Date(fechaStr);
+    // Normalizar formato SQLite → ISO 8601 UTC (ej: 2026-05-03 20:00:00 → 2026-05-03T20:00:00Z)
+    const isoStr = fechaStr.includes('T') ? fechaStr : fechaStr.replace(' ', 'T') + 'Z';
+    const fecha = new Date(isoStr);
     const ahora = new Date();
-    const diffMs = ahora.getTime() - fecha.getTime();
+    const diffMs = Math.max(0, ahora.getTime() - fecha.getTime());
     const diffMins = Math.floor(diffMs / 60000);
     const diffHoras = Math.floor(diffMins / 60);
     const diffDias = Math.floor(diffHoras / 24);
 
+    if (diffMins < 1) return 'Ahora';
     if (diffMins < 60) return `hace ${diffMins}m`;
     if (diffHoras < 24) return `hace ${diffHoras}h`;
     if (diffDias < 7) return `hace ${diffDias}d`;
     return fecha.toLocaleDateString();
   };
 
-  const parcelasVisibles = parcelas.slice(0, 3);
-  const hayMasParcelas = parcelas.length > 3;
-  const deteccionesRecientes = detecciones.slice(0, 3);
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.saludo}>Buenos días 👋</Text>
-            <Text style={styles.titulo}>Panel de{'\n'}Control</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.perfilBtn}
-            onPress={() => navigation.navigate('Perfil')}
-          >
-            <Text style={styles.perfilEmoji}>👤</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Banner offline ── */}
-        <View style={styles.bannerOffline}>
-          <Text style={styles.bannerEmoji}>📡</Text>
-          <View style={styles.bannerTexto}>
-            <Text style={styles.bannerTitulo}>Modo sin conexión disponible</Text>
-            <Text style={styles.bannerSubtitulo}>
-              La IA funciona directo en tu celular
-            </Text>
-          </View>
-        </View>
-
-        {/* ── Lista de parcelas ── */}
-        <View style={styles.panelParcelas}>
-          <TouchableOpacity
-            style={styles.panelHeader}
-            onPress={handleIrAGestionParcelas}
-            activeOpacity={0.7}
-          >
-            <View style={styles.panelHeaderLeft}>
-              <Text style={styles.panelIcon}>🌱</Text>
-              <Text style={styles.panelTitulo}>Mis Parcelas</Text>
-            </View>
-            <Text style={styles.panelFlecha}>›</Text>
-          </TouchableOpacity>
-
-          {parcelas.length === 0 ? (
-            <View style={styles.emptyParcelas}>
-              <Text style={styles.emptyParcelasText}>
-                Sin parcelas registradas
-              </Text>
-              <Text style={styles.emptyParcelasSub}>
-                Toca "Mis Parcelas" para crear tu primera parcela
-              </Text>
-            </View>
-          ) : (
-            <>
-              {parcelasVisibles.map((parcela) => {
-                const vertices = parseGeometria(parcela.geometria);
-                return (
-                  <TouchableOpacity
-                    key={parcela.id}
-                    style={styles.parcelaItem}
-                    onPress={() => handleEditarParcela(parcela.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.parcelaIconContainer}>
-                      <Text style={styles.parcelaIcon}>📍</Text>
-                    </View>
-                    <View style={styles.parcelaInfo}>
-                      <Text style={styles.parcelaNombre}>{parcela.alias}</Text>
-                      <Text style={styles.parcelaMeta}>
-                        {vertices.length} vértices · {formatearArea(parcela.metros_cuadrados)}
-                      </Text>
-                    </View>
-                    <Text style={styles.parcelaFlecha}>›</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-        </View>
-
-        {/* ── Detecciones recientes ── */}
-        {deteccionesRecientes.length > 0 ? (
-          <>
-            <Text style={styles.seccionTitulo}>Detecciones recientes</Text>
-            <View style={styles.deteccionesContainer}>
-              {deteccionesRecientes.map((deteccion) => {
-                const badge = getNivelRiesgoBadge(deteccion);
-                return (
-                  <View key={deteccion.id} style={styles.deteccionCard}>
-                    <View style={styles.deteccionInfo}>
-                      <Text style={styles.deteccionEnfermedad}>
-                        {deteccion.enfermedad_id
-                          ? deteccion.nombre_enfermedad || 'Enfermedad detectada'
-                          : 'Sano'}
-                      </Text>
-                      <Text style={styles.deteccionParcela}>
-                        {deteccion.nombre_cultivo || 'Cultivo'} • {deteccion.parcela_alias || 'Sin parcela'}
-                      </Text>
-                    </View>
-                    <View style={styles.deteccionRight}>
-                      <Text style={styles.deteccionBadge}>{badge.emoji}</Text>
-                      <Text style={styles.deteccionTiempo}>
-                        {formatFechaRelativa(deteccion.fecha_creacion || '')}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        ) : (
-          <View style={styles.emptyDetecciones}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>
-              Sin detecciones aún. Ve a "Escanear" para comenzar.
-            </Text>
-          </View>
-        )}
-
-        {/* ── Acceso rápido ── */}
-        <Text style={styles.seccionTitulo}>Acceso rápido</Text>
-        <View style={styles.accesoRow}>
-
-          <TouchableOpacity
-            style={styles.accesoBtn}
-            onPress={() => navigation.navigate('Historial')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.accesoEmoji}>📋</Text>
-            <Text style={styles.accesoLabel}>Ver historial</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.accesoBtn}
-            onPress={() => navigation.navigate('Mapa')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.accesoEmoji}>🗺️</Text>
-            <Text style={styles.accesoLabel}>Mapa de calor</Text>
-          </TouchableOpacity>
-
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
+    <XStack alignItems="center" bg="$white" borderRadius="$md" p="$md" gap="$md">
+      <YStack flex={1} gap={2}>
+        <Text fontSize={16} fontWeight="600" color="$textPrimary">
+          {deteccion.enfermedad_id
+            ? deteccion.nombre_enfermedad || 'Enfermedad detectada'
+            : 'Sano'}
+        </Text>
+        <Text fontSize={14} color="$textSecondary">
+          {deteccion.nombre_cultivo || 'Cultivo'} • {deteccion.parcela_alias || 'Sin parcela'}
+        </Text>
+      </YStack>
+      <YStack alignItems="flex-end" gap={4}>
+        <RiesgoIcon size={18} color={riesgoColor} />
+        <Text fontSize={12} color="$textMuted">
+          {formatFechaRelativa(deteccion.fecha_creacion || '')}
+        </Text>
+        <Text fontSize={11} fontWeight="600" color={riesgoColor}>
+          {riesgoTexto}
+        </Text>
+      </YStack>
+    </XStack>
   );
 };
 
-export default HomeScreen;
+// ── Subcomponente: Botón de acceso rápido ──────────────────────────
+/**
+ * Botón cuadrado para acceso rápido a funciones principales.
+ *
+ * @param icon    Componente de ícono de lucide-react-native.
+ * @param label   Texto descriptivo.
+ * @param onPress Handler al tocar.
+ */
+const AccesoRapidoBtn = ({
+  icon: Icon,
+  label,
+  onPress,
+}: {
+  icon: React.ElementType;
+  label: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
+    <YStack flex={1} bg="$white" borderRadius="$lg" p="$md" alignItems="center" gap="$sm" borderWidth={1} borderColor="$border">
+      <Icon size={32} color={COLORS.primary} />
+      <Text fontSize={14} fontWeight="600" color="$textSecondary" textAlign="center">
+        {label}
+      </Text>
+    </YStack>
+  </TouchableOpacity>
+);
 
-const styles = StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: COLORS.bgPrimary,
-  },
-  scroll: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.md,
-    paddingBottom:     SPACING.xxl,
-    gap:               SPACING.md,
-  },
-  header: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'flex-start',
-    marginBottom:   SPACING.xs,
-  },
-  saludo: {
-    fontSize: FONT_SIZE.md,
-    color:    COLORS.textSecondary,
-  },
-  titulo: {
-    fontSize:   FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color:      COLORS.textPrimary,
-    lineHeight: 36,
-    marginTop:  SPACING.xs,
-  },
-  perfilBtn: {
-    width:           48,
-    height:          48,
-    borderRadius:    RADIUS.full,
-    backgroundColor: COLORS.bgGreen,
-    borderWidth:     2,
-    borderColor:     COLORS.primary,
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  perfilEmoji: { fontSize: 22 },
-  bannerOffline: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.bgGreen,
-    borderRadius:    RADIUS.md,
-    padding:         SPACING.md,
-    gap:             SPACING.md,
-    borderWidth:     1,
-    borderColor:     COLORS.primaryLight,
-  },
-  bannerEmoji:    { fontSize: 28 },
-  bannerTexto:    { flex: 1 },
-  bannerTitulo: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.primary,
-  },
-  bannerSubtitulo: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textSecondary,
-  },
-  seccionTitulo: {
-    fontSize:   FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
-    color:      COLORS.textPrimary,
-    marginTop:  SPACING.xs,
-  },
-  panelParcelas: {
-    backgroundColor: COLORS.white,
-    borderRadius:    RADIUS.lg,
-    overflow:        'hidden',
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.1,
-    shadowRadius:    4,
-    elevation:       3,
-  },
-  panelHeader: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'space-between',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-  panelHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  panelIcon: {
-    fontSize: 20,
-  },
-  panelTitulo: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.white,
-  },
-  panelFlecha: {
-    fontSize:   FONT_SIZE.xl,
-    color:      COLORS.white,
-    fontWeight: FONT_WEIGHT.bold,
-  },
-  emptyParcelas: {
-    padding: SPACING.lg,
-    alignItems: 'center',
-    backgroundColor: COLORS.bgPrimary,
-    gap: SPACING.xs,
-  },
-  emptyParcelasText: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textMuted,
-  },
-  emptyParcelasSub: {
-    fontSize:   FONT_SIZE.xs,
-    color:      COLORS.textMuted,
-    textAlign:  'center',
-  },
-  parcelaItem: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.bgPrimary,
-    padding:         SPACING.md,
-    gap:             SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  parcelaIconContainer: {
-    width:         36,
-    height:        36,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.bgGreen,
-    alignItems:   'center',
-    justifyContent: 'center',
-  },
-  parcelaIcon: {
-    fontSize: 18,
-  },
-  parcelaInfo: { flex: 1 },
-  parcelaNombre: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.textPrimary,
-  },
-  parcelaMeta: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textSecondary,
-    marginTop: 2,
-  },
-  parcelaFlecha: {
-    fontSize:   FONT_SIZE.xl,
-    color:      COLORS.textMuted,
-    fontWeight: FONT_WEIGHT.bold,
-  },
-  deteccionesContainer: {
-    gap: SPACING.sm,
-  },
-  deteccionCard: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.white,
-    borderRadius:    RADIUS.md,
-    padding:         SPACING.md,
-    gap:             SPACING.md,
-  },
-  deteccionInfo: { flex: 1, gap: 2 },
-  deteccionEnfermedad: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.textPrimary,
-  },
-  deteccionParcela: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textSecondary,
-  },
-  deteccionRight: {
-    alignItems: 'flex-end',
-    gap:        4,
-  },
-  deteccionBadge: { fontSize: 18 },
-  deteccionTiempo: {
-    fontSize:   FONT_SIZE.xs,
-    color:      COLORS.textMuted,
-  },
-  emptyDetecciones: {
-    backgroundColor: COLORS.white,
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.lg,
-    alignItems:     'center',
-    gap:             SPACING.sm,
-  },
-  emptyIcon:  { fontSize: 40 },
-  emptyText: {
-    fontSize:  FONT_SIZE.sm,
-    color:     COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  accesoRow: {
-    flexDirection: 'row',
-    gap:           SPACING.sm,
-  },
-  accesoBtn: {
-    flex:            1,
-    backgroundColor: COLORS.white,
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.md,
-    alignItems:      'center',
-    gap:             SPACING.sm,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-  },
-  accesoEmoji: { fontSize: 32 },
-  accesoLabel: {
-    fontSize:   FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.textSecondary,
-    textAlign:  'center',
-  },
-});
+// ── Utilidad: Metadatos de nivel de riesgo ─────────────────────────
+/**
+ * Determina el ícono, color y texto del badge de riesgo según la detección.
+ *
+ * @param deteccion Registro de detección a evaluar.
+ * @returns Objeto con icono Lucide, color HEX y texto descriptivo.
+ */
+const getNivelRiesgoMeta = (deteccion: Deteccion) => {
+  if (!deteccion.enfermedad_id) {
+    return { icon: CheckCircle2, color: COLORS.semaforoVerde, texto: 'Sano' };
+  }
+  if (deteccion.nivel_confianza >= 80) {
+    return { icon: AlertCircle, color: COLORS.semaforoRojo, texto: 'Alto' };
+  }
+  return { icon: AlertTriangle, color: COLORS.semaforoAmarillo, texto: 'Medio' };
+};
+
+export default HomeScreen;

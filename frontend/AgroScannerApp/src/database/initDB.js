@@ -48,6 +48,7 @@ export async function initDatabase() {
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id TEXT PRIMARY KEY NOT NULL,
+      nombre TEXT NOT NULL,
       email TEXT,
       token TEXT,
       zona_agricola TEXT,

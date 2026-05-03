@@ -160,7 +160,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
                 <ActivityIndicator color={COLORS.primary} />
               ) : (
                 <Text color="$acentoDark" fontSize={18} fontWeight="800" letterSpacing={1}>
-                  👨‍🌾 Iniciar como Demo
+                    Iniciar como Demo
                 </Text>
               )}
             </YStack>
@@ -173,7 +173,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
           >
             <YStack bg="$acentoLight" borderRadius="$xl" py="$md" alignItems="center" borderWidth={1.5} borderColor="$acento">
               <Text color="$acentoDark" fontSize={16} fontWeight="700">
-                📷 Escanear sin cuenta
+                  Escanear sin cuenta
               </Text>
             </YStack>
           </TouchableOpacity>

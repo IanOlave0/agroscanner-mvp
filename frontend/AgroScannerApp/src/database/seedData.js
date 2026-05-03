@@ -102,6 +102,7 @@ export default seedDatabase;
  */
 const MOCK_USER = {
   id: "mock-user-00000000-0000-0000-0000-000000000001",
+  nombre: "Carlos Ramírez",
   email: "demo@agroscanner.com",
   token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb2NrLXVzZXItMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAxIiwiZW1haWwiOiJkZW1vQGFncm9zY2FubmVyLmNvbSIsInJvbCI6ImFncmljdWx0b3IiLCJleHAiOjQxMDI0NDQ4MDB9.mockSignature",
   zona_agricola: "Colima, México",
@@ -170,8 +171,8 @@ export async function seedMockUser() {
   try {
     // Insertar usuario mock
     await db.runAsync(
-      "INSERT OR IGNORE INTO usuarios (id, email, token, zona_agricola) VALUES (?, ?, ?, ?)",
-      [MOCK_USER.id, MOCK_USER.email, MOCK_USER.token, MOCK_USER.zona_agricola]
+      "INSERT OR IGNORE INTO usuarios (id, nombre, email, token, zona_agricola) VALUES (?, ?, ?, ?, ?)",
+      [MOCK_USER.id, MOCK_USER.nombre, MOCK_USER.email, MOCK_USER.token, MOCK_USER.zona_agricola]
     );
 
     const usuario = await db.getFirstAsync("SELECT * FROM usuarios WHERE id = ?", [MOCK_USER.id]);

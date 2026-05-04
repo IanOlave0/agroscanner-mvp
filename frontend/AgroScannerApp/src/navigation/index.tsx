@@ -2,11 +2,18 @@
  * @file src/navigation/index.tsx
  * @description Configuración central de navegación de AgroScanner.
  * Define dos niveles de navegación:
- * - Stack Navigator (raíz): gestiona flujos completos (Auth, Scanner, Parcelas).
- * - Bottom Tab Navigator: navegación principal entre secciones de la app.
+ * - Stack Navigator (raíz): gestiona flujos completos de pantallas (Auth, Scanner, Parcelas).
+ * - Bottom Tab Navigator: navegación principal entre las 4 secciones centrales de la app.
  *
- * Migración UI/UX: los íconos de tabs fueron migrados de emojis nativos a
- * iconos vectoriales SVG de Lucide React Native para mayor consistencia visual.
+ * Migración UI/UX:
+ * - Los íconos de tabs fueron migrados de emojis nativos a iconos vectoriales
+ *   de Lucide React Native para mayor consistencia visual.
+ * - Se eliminó el tab "Perfil" del bottom navigator (antes eran 5 tabs).
+ *   El acceso al perfil se realiza desde el header de HomeScreen para evitar
+ *   saturación visual y problemas de espaciado en pantallas estrechas.
+ * - Se utiliza la API nativa de React Navigation (tabBarLabel + tabBarIcon)
+ *   en lugar de un componente custom TabIcon, garantizando correcto manejo
+ *   de colores activos/inactivos y layout por parte de la librería.
  *
  * @author AgroScanner Team
  */
@@ -18,7 +25,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 // ── Iconos vectoriales (Lucide React Native) ───────────────────────
 // NOTA: requiere react-native-svg (ya incluido en dependencias).
-import { Home, ScanLine, ClipboardList, Map, User } from 'lucide-react-native';
+import { Home, ScanLine, ClipboardList, Map } from 'lucide-react-native';
 
 import { RootStackParams } from '../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from '../constants';
@@ -55,92 +62,77 @@ import ParcelaCanvasScreen  from '../screens/parcelas/ParcelaCanvasScreen';
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab   = createBottomTabNavigator();
 
-// ── Componente de ícono de tab ─────────────────────────────────────
-/**
- * Renderiza un ícono vectorial de Lucide + etiqueta para cada tab del bottom navigator.
- *
- * @param icon   Componente de ícono de lucide-react-native.
- * @param label  Texto descriptivo de la pestaña.
- * @param focused Indica si la pestaña está activa (afecta color del ícono y texto).
- */
-const TabIcon = ({
-  icon: Icon,
-  label,
-  focused,
-}: {
-  icon:    React.ElementType;
-  label:   string;
-  focused: boolean;
-}) => (
-  <View style={styles.tabItem}>
-    <Icon size={22} color={focused ? COLORS.primary : COLORS.textMuted} />
-    <Text style={[
-      styles.tabLabel,
-      { color: focused ? COLORS.primary : COLORS.textMuted },
-    ]}>
-      {label}
-    </Text>
-  </View>
-);
-
 // ── Tab Navigator (navegación principal) ───────────────────────────
+/**
+ * Bottom Tab Navigator con 4 pestañas principales.
+ *
+ * NOTA DE DISEÑO:
+ * - Se optó por 4 tabs (no 5) para evitar saturación visual y problemas
+ *   de espaciado en pantallas de iPhone estándar.
+ * - El acceso al perfil se delega al icono de usuario en el header de HomeScreen.
+ * - Se usa la API nativa tabBarLabel/tabBarIcon en lugar de un render custom
+ *   para garantizar que React Navigation maneje correctamente el layout,
+ *   colores activos/inactivos y safe areas.
+ */
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
-      headerShown:     false,
-      tabBarStyle:     styles.tabBar,
-      tabBarShowLabel: false, // Se usa componente personalizado para ícono + label
+      headerShown: false,
+      tabBarStyle: styles.tabBar,
+      // Colores activo/inactivo gestionados nativamente por la librería
+      tabBarActiveTintColor: COLORS.primary,
+      tabBarInactiveTintColor: COLORS.textMuted,
+      // Estilo tipográfico del label debajo del icono
+      tabBarLabelStyle: styles.tabLabel,
+      // Padding vertical adicional para separar icono del texto
+      tabBarItemStyle: { paddingVertical: 4 },
     }}
   >
     <Tab.Screen
       name="Home"
       component={HomeScreen}
       options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon icon={Home} label="Inicio" focused={focused} />
-        ),
+        tabBarLabel: 'Inicio',
+        tabBarIcon: ({ color }) => <Home size={22} color={color} />,
       }}
     />
     <Tab.Screen
       name="Scanner"
       component={SeleccionCultivoScreen}
       options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon icon={ScanLine} label="Escanear" focused={focused} />
-        ),
+        tabBarLabel: 'Escanear',
+        tabBarIcon: ({ color }) => <ScanLine size={22} color={color} />,
       }}
     />
     <Tab.Screen
       name="Historial"
       component={HistorialScreen}
       options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon icon={ClipboardList} label="Historial" focused={focused} />
-        ),
+        tabBarLabel: 'Historial',
+        tabBarIcon: ({ color }) => <ClipboardList size={22} color={color} />,
       }}
     />
     <Tab.Screen
       name="Mapa"
       component={MapaScreen}
       options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon icon={Map} label="Mapa" focused={focused} />
-        ),
-      }}
-    />
-    <Tab.Screen
-      name="Perfil"
-      component={PerfilScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon icon={User} label="Perfil" focused={focused} />
-        ),
+        tabBarLabel: 'Mapa',
+        tabBarIcon: ({ color }) => <Map size={22} color={color} />,
       }}
     />
   </Tab.Navigator>
 );
 
 // ── Stack Navigator (raíz) ─────────────────────────────────────────
+/**
+ * Stack Navigator principal de la aplicación.
+ * Gestiona toda la jerarquía de navegación:
+ * 1. Flujo de autenticación (Welcome, Login, Registro)
+ * 2. Aplicación principal (MainTabs con 4 pestañas)
+ * 3. Pantallas de flujo de scanner (Camara, Resultado, PinPlacement)
+ * 4. Gestión de parcelas (ParcelaGestion, ParcelaCanvas)
+ * 5. Perfil (accesible desde el header de HomeScreen, no desde tab bar)
+ */
 const AppNavigation = () => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
@@ -153,6 +145,9 @@ const AppNavigation = () => (
 
     {/* ── Aplicación principal (tabs) ────────────────────────────── */}
     <Stack.Screen name="Home" component={MainTabs} />
+
+    {/* ── Perfil (accesible desde HomeScreen) ────────────────────── */}
+    <Stack.Screen name="Perfil" component={PerfilScreen} />
 
     {/* ── Flujo de escaneo (scanner) ─────────────────────────────── */}
     <Stack.Screen name="SeleccionCultivo"  component={SeleccionCultivoScreen} />
@@ -169,19 +164,18 @@ const AppNavigation = () => (
 
 export default AppNavigation;
 
-// ── Estilos nativos (tab bar aún usa StyleSheet por compatibilidad) ─
+// ── Estilos nativos (tab bar) ──────────────────────────────────────
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.white,
     borderTopColor:  COLORS.border,
     borderTopWidth:  1,
     height:          72,
-    paddingBottom:   8,
-    paddingTop:      8,
-  },
-  tabItem: {
-    alignItems: 'center',
-    gap:        4,
+    // Padding horizontal para separar los items de los bordes laterales
+    paddingHorizontal: 16,
+    // Padding vertical para centrar el contenido (icono + label)
+    paddingBottom:   15,
+    paddingTop:      3,
   },
   tabLabel: {
     fontSize:   FONT_SIZE.xs,

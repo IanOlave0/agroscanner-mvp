@@ -1,23 +1,38 @@
+/**
+ * @file src/screens/historial/HistorialScreen.tsx
+ * @description Pantalla de historial de detecciones.
+ * Muestra el listado de escaneos previos con filtro por cultivo.
+ *
+ * Migración UI/UX:
+ * - Layout reemplazado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
+ * - Iconos de emojis migrados a vectoriales de Lucide React Native.
+ * - Iconos de cultivos reemplazados por componentes SVG vectoriales.
+ * - Tipografía utiliza tokens de color de Tamagui; fontSize usa valores numéricos.
+ *
+ * @author AgroScanner Team
+ */
+
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
+  ScrollView, StatusBar, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// CORRECCIÓN: Se eliminó 'CULTIVOS' de la importación para evitar el error de variable no usada
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { YStack, XStack, Text } from 'tamagui';
+import {
+  CloudOff, Sprout, CheckCircle2, AlertTriangle,
+  ChevronRight,
+} from 'lucide-react-native';
 
-// ── Datos de ejemplo ──────────────────────
+import { COLORS } from '../../constants';
+import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
+
+// ── Datos de ejemplo ───────────────────────────────────────────────
 const DETECCIONES_EJEMPLO = [
   {
     id: 1,
     fecha: '2026-03-20 09:15',
     cultivo: 'Limón Mexicano',
-    emoji: '🍋',
+    cultivoId: 1,
     enfermedad: 'HLB (Dragón Amarillo)',
     resultado_positivo: true,
     confianza: 0.92,
@@ -27,7 +42,7 @@ const DETECCIONES_EJEMPLO = [
     id: 2,
     fecha: '2026-03-20 10:30',
     cultivo: 'Papaya',
-    emoji: '🍈',
+    cultivoId: 2,
     enfermedad: 'Araña Roja',
     resultado_positivo: false,
     confianza: 0.88,
@@ -37,7 +52,7 @@ const DETECCIONES_EJEMPLO = [
     id: 3,
     fecha: '2026-03-19 14:00',
     cultivo: 'Plátano',
-    emoji: '🍌',
+    cultivoId: 3,
     enfermedad: 'Sigatoka Negra',
     resultado_positivo: true,
     confianza: 0.76,
@@ -55,201 +70,169 @@ const HistorialScreen = () => {
     return d.cultivo.includes(filtroActivo);
   });
 
+  const getIconoCultivo = (id: number, size: number) => {
+    switch (id) {
+      case 1: return <LimonIcon width={size} height={size} />;
+      case 2: return <PapayaIcon width={size} height={size} />;
+      case 3: return <PlatanoIcon width={size} height={size} />;
+      default: return null;
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.titulo}>Historial</Text>
-          <Text style={styles.subtitulo}>
-            {deteccionesFiltradas.length} escaneos registrados
-          </Text>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack pb="$xxl">
 
-        {/* Banner offline */}
-        {DETECCIONES_EJEMPLO.some(d => !d.sincronizado) && (
-          <View style={styles.bannerPendiente}>
-            <Text style={styles.bannerEmoji}>☁️</Text>
-            <View style={styles.bannerTexto}>
-              <Text style={styles.bannerTitulo}>Tienes escaneos sin sincronizar</Text>
-              <Text style={styles.bannerSub}>
-                Se subirán automáticamente cuando tengas internet
-              </Text>
-            </View>
-          </View>
-        )}
+          {/* ── Header ───────────────────────────────────────────── */}
+          <YStack px="$lg" pt="$xl" pb="$md" gap="$xs">
+            <Text fontSize={28} fontWeight="800" color="$textPrimary">
+              Historial
+            </Text>
+            <Text fontSize={16} color="$textSecondary">
+              {deteccionesFiltradas.length} escaneos registrados
+            </Text>
+          </YStack>
 
-        {/* Filtros */}
-        <View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtrosContainer}
-          >
-            {FILTROS.map(filtro => (
-              <TouchableOpacity
-                key={filtro}
-                style={[
-                  styles.filtroPill,
-                  filtroActivo === filtro && styles.filtroPillActivo,
-                ]}
-                onPress={() => setFiltroActivo(filtro)}
-                activeOpacity={0.85}
-              >
-                <Text style={[
-                  styles.filtroTexto,
-                  filtroActivo === filtro && styles.filtroTextoActivo,
-                ]}>
-                  {filtro}
+          {/* ── Banner: sin sincronizar ──────────────────────────── */}
+          {DETECCIONES_EJEMPLO.some(d => !d.sincronizado) && (
+            <XStack mx="$lg" alignItems="center" bg="#FFF9C4" borderRadius="$md" p="$md" gap="$md" mb="$md" borderWidth={1} borderColor="$warning">
+              <CloudOff size={24} color={COLORS.warning} />
+              <YStack flex={1}>
+                <Text fontSize={14} fontWeight="700" color="#856404">
+                  Tienes escaneos sin sincronizar
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Lista de detecciones */}
-        <View style={styles.listaContainer}>
-          {deteccionesFiltradas.length === 0 ? (
-            <View style={styles.vacio}>
-              <Text style={styles.vacioEmoji}>🌿</Text>
-              <Text style={styles.vacioTitulo}>Sin escaneos aún</Text>
-              <Text style={styles.vacioSub}>
-                Tus diagnósticos aparecerán aquí
-              </Text>
-            </View>
-          ) : (
-            deteccionesFiltradas.map(deteccion => (
-              <TarjetaDeteccion
-                key={deteccion.id}
-                deteccion={deteccion}
-              />
-            ))
+                <Text fontSize={12} color="$textSecondary">
+                  Se subirán automáticamente cuando tengas internet
+                </Text>
+              </YStack>
+            </XStack>
           )}
-        </View>
+
+          {/* ── Filtros ──────────────────────────────────────────── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <XStack px="$lg" gap="$sm" pb="$md">
+              {FILTROS.map(filtro => (
+                <TouchableOpacity
+                  key={filtro}
+                  onPress={() => setFiltroActivo(filtro)}
+                  activeOpacity={0.85}
+                >
+                  <YStack
+                    px="$md"
+                    py="$sm"
+                    borderRadius="$full"
+                    bg={filtroActivo === filtro ? '$primary' : '$bgCard'}
+                    borderWidth={1.5}
+                    borderColor={filtroActivo === filtro ? '$primary' : '$border'}
+                  >
+                    <Text
+                      fontSize={14}
+                      fontWeight="600"
+                      color={filtroActivo === filtro ? '$white' : '$textSecondary'}
+                    >
+                      {filtro}
+                    </Text>
+                  </YStack>
+                </TouchableOpacity>
+              ))}
+            </XStack>
+          </ScrollView>
+
+          {/* ── Lista de detecciones ─────────────────────────────── */}
+          <YStack px="$lg" gap="$md">
+            {deteccionesFiltradas.length === 0 ? (
+              <YStack alignItems="center" pt="$xxl" gap="$md">
+                <Sprout size={56} color={COLORS.primaryLight} />
+                <Text fontSize={22} fontWeight="700" color="$textSecondary">
+                  Sin escaneos aún
+                </Text>
+                <Text fontSize={16} color="$textMuted" textAlign="center">
+                  Tus diagnósticos aparecerán aquí
+                </Text>
+              </YStack>
+            ) : (
+              deteccionesFiltradas.map(deteccion => (
+                <TarjetaDeteccion
+                  key={deteccion.id}
+                  deteccion={deteccion}
+                  getIconoCultivo={getIconoCultivo}
+                />
+              ))
+            )}
+          </YStack>
+
+        </YStack>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const TarjetaDeteccion = ({ deteccion }: { deteccion: any }) => {
+// ── Subcomponente: Tarjeta de detección ────────────────────────────
+const TarjetaDeteccion = ({
+  deteccion,
+  getIconoCultivo,
+}: {
+  deteccion: any;
+  getIconoCultivo: (id: number, size: number) => React.ReactNode;
+}) => {
   const confianzaPct = Math.round(deteccion.confianza * 100);
   const esPositivo = deteccion.resultado_positivo;
   const colorResultado = esPositivo ? COLORS.danger : COLORS.success;
-  const textoResultado = esPositivo ? '⚠ Enfermedad' : '✅ Sana';
 
   return (
-    <View style={styles.tarjeta}>
-      <View style={[styles.tarjetaFranja, { backgroundColor: colorResultado }]} />
-      <View style={styles.tarjetaContenido}>
-        <View style={styles.tarjetaTop}>
-          <Text style={styles.tarjetaEmoji}>{deteccion.emoji}</Text>
-          <View style={styles.tarjetaInfo}>
-            <Text style={styles.tarjetaCultivo}>{deteccion.cultivo}</Text>
-            <Text style={styles.tarjetaFecha}>{deteccion.fecha}</Text>
-          </View>
-          <View style={[styles.tarjetaBadge, { backgroundColor: colorResultado + '20' }]}>
-            <Text style={[styles.tarjetaBadgeText, { color: colorResultado }]}>
-              {textoResultado}
-            </Text>
-          </View>
-        </View>
+    <XStack bg="$bgCard" borderRadius="$lg" overflow="hidden" borderWidth={1} borderColor="$border" style={{ elevation: 2 }}>
+      {/* Franja de color izquierda */}
+      <YStack width={5} bg={colorResultado} />
 
-        <View style={styles.tarjetaBottom}>
+      <YStack flex={1} p="$md" gap="$sm">
+        {/* Top: icono + info + badge */}
+        <XStack alignItems="center" gap="$sm">
+          {getIconoCultivo(deteccion.cultivoId, 32)}
+          <YStack flex={1}>
+            <Text fontSize={16} fontWeight="700" color="$textPrimary">
+              {deteccion.cultivo}
+            </Text>
+            <Text fontSize={12} color="$textMuted">
+              {deteccion.fecha}
+            </Text>
+          </YStack>
+          <XStack alignItems="center" gap="$xs" px="$sm" py={4} borderRadius="$full" bg={colorResultado + '20'}>
+            {esPositivo ? (
+              <AlertTriangle size={14} color={colorResultado} />
+            ) : (
+              <CheckCircle2 size={14} color={colorResultado} />
+            )}
+            <Text fontSize={12} fontWeight="700" color={colorResultado}>
+              {esPositivo ? 'Enfermedad' : 'Sana'}
+            </Text>
+          </XStack>
+        </XStack>
+
+        {/* Bottom: enfermedad + meta */}
+        <YStack gap="$xs">
           {esPositivo && (
-            <Text style={styles.tarjetaEnfermedad}>{deteccion.enfermedad}</Text>
+            <Text fontSize={14} fontWeight="600" color="$danger">
+              {deteccion.enfermedad}
+            </Text>
           )}
-          <View style={styles.tarjetaMeta}>
-            <Text style={styles.tarjetaConfianza}>Certeza: {confianzaPct}%</Text>
-            <View style={styles.syncIndicador}>
-              <View style={[
-                styles.syncPunto,
-                { backgroundColor: deteccion.sincronizado ? COLORS.success : COLORS.warning }
-              ]} />
-              <Text style={styles.syncTexto}>
+          <XStack justifyContent="space-between" alignItems="center">
+            <Text fontSize={12} color="$textMuted">
+              Certeza: {confianzaPct}%
+            </Text>
+            <XStack alignItems="center" gap={4}>
+              <YStack width={8} height={8} borderRadius="$full" bg={deteccion.sincronizado ? '$success' : '$warning'} />
+              <Text fontSize={12} color="$textMuted">
                 {deteccion.sincronizado ? 'Sincronizado' : 'Pendiente'}
               </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
+            </XStack>
+          </XStack>
+        </YStack>
+      </YStack>
+    </XStack>
   );
 };
 
 export default HistorialScreen;
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bgPrimary },
-  scroll: { paddingBottom: SPACING.xxl },
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.md,
-    gap: SPACING.xs,
-  },
-  titulo: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary },
-  subtitulo: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
-  bannerPendiente: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: SPACING.lg,
-    backgroundColor: '#FFF9C4', // Tono amarillo suave para advertencia
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    gap: SPACING.md,
-    marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.warning,
-  },
-  bannerEmoji: { fontSize: 24 },
-  bannerTexto: { flex: 1 },
-  bannerTitulo: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#856404' },
-  bannerSub: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
-  filtrosContainer: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, paddingBottom: SPACING.md },
-  filtroPill: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.bgCard,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
-  filtroPillActivo: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filtroTexto: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
-  filtroTextoActivo: { color: COLORS.white },
-  listaContainer: { paddingHorizontal: SPACING.lg, gap: SPACING.md },
-  vacio: { alignItems: 'center', paddingTop: SPACING.xxl, gap: SPACING.md },
-  vacioEmoji: { fontSize: 56 },
-  vacioTitulo: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textSecondary },
-  vacioSub: { fontSize: FONT_SIZE.md, color: COLORS.textMuted, textAlign: 'center' },
-  tarjeta: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 2,
-  },
-  tarjetaFranja: { width: 5 },
-  tarjetaContenido: { flex: 1, padding: SPACING.md, gap: SPACING.sm },
-  tarjetaTop: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  tarjetaEmoji: { fontSize: 32 },
-  tarjetaInfo: { flex: 1 },
-  tarjetaCultivo: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  tarjetaFecha: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  tarjetaBadge: { paddingHorizontal: SPACING.sm, paddingVertical: 4, borderRadius: RADIUS.full },
-  tarjetaBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold },
-  tarjetaBottom: { gap: SPACING.xs },
-  tarjetaEnfermedad: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.danger },
-  tarjetaMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tarjetaConfianza: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  syncIndicador: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  syncPunto: { width: 8, height: 8, borderRadius: RADIUS.full },
-  syncTexto: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-});

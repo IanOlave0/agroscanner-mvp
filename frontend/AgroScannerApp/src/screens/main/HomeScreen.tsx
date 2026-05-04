@@ -137,8 +137,13 @@ const HomeScreen = () => {
               </Text>
             </YStack>
             <TouchableOpacity onPress={() => navigation.navigate('Perfil')} activeOpacity={0.7}>
-              <YStack width={48} height={48} borderRadius="$full" bg="$bgGreen" borderWidth={2} borderColor="$primary" alignItems="center" justifyContent="center">
-                <User size={22} color={COLORS.primary} />
+              <YStack alignItems="center" gap={2}>
+                <YStack width={48} height={48} borderRadius="$full" bg="$bgGreen" borderWidth={2} borderColor="$primary" alignItems="center" justifyContent="center">
+                  <User size={22} color={COLORS.primary} />
+                </YStack>
+                <Text fontSize={10} fontWeight="600" color="$primary">
+                  Mi perfil
+                </Text>
               </YStack>
             </TouchableOpacity>
           </XStack>

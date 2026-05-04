@@ -1,19 +1,32 @@
+/**
+ * @file src/screens/main/PerfilScreen.tsx
+ * @description Pantalla de perfil del usuario.
+ * Muestra información del usuario, preferencias y opciones de cuenta.
+ *
+ * Migración UI/UX:
+ * - Layout reemplazado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
+ * - Iconos de emojis migrados a vectoriales de Lucide React Native.
+ * - Tipografía utiliza tokens de color de Tamagui; fontSize usa valores numéricos.
+ *
+ * @author AgroScanner Team
+ */
+
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Alert,
-  Switch,
+  Switch, ScrollView, StatusBar, TouchableOpacity, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { YStack, XStack, Text } from 'tamagui';
+import {
+  User, UserCheck, Bell, WifiOff,
+  Cloud, Clock, ClipboardList, Shield,
+  LogOut, ChevronRight,
+} from 'lucide-react-native';
+
 import { RootStackParams } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { COLORS, SHADOW } from '../../constants';
 import { clearMockUser } from '../../database/seedData';
 
 const PerfilScreen = () => {
@@ -21,8 +34,8 @@ const PerfilScreen = () => {
   const [notificaciones, setNotificaciones] = useState(true);
   const [modoOffline, setModoOffline] = useState(true);
 
-  // ── CONFIGURACIÓN PARA LA DEMO ───────────────
-  const haySession = true; 
+  // ── CONFIGURACIÓN PARA LA DEMO ───────────────────────────────────
+  const haySession = true;
   const nombreUsuario = haySession ? 'Carlos Ramírez' : 'Invitado';
 
   const handleCerrarSesion = async () => {
@@ -44,220 +57,212 @@ const PerfilScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.perfilHeader}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>{haySession ? '👨‍🌾' : '👤'}</Text>
-          </View>
-          <Text style={styles.nombreUsuario}>{nombreUsuario}</Text>
-          {haySession ? (
-            <Text style={styles.rolUsuario}>Agricultor · Colima, MX</Text>
-          ) : (
-            <View style={styles.guestBadge}>
-              <Text style={styles.guestBadgeText}>Modo invitado</Text>
-            </View>
-          )}
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack pb="$xxl" gap="$lg">
 
-        {!haySession && (
-          <View style={styles.bannerLogin}>
-            <Text style={styles.bannerLoginTitulo}>💾 Guarda tus escaneos</Text>
-            <Text style={styles.bannerLoginSub}>
-              Crea una cuenta para sincronizar tus detecciones y verlas en el mapa regional.
+          {/* ── Header de perfil ─────────────────────────────────── */}
+          <YStack alignItems="center" pt="$xxl" pb="$lg" bg="$white" borderBottomWidth={1} borderBottomColor="$border" gap="$sm">
+            <YStack width={90} height={90} borderRadius="$full" bg="$bgPrimary" alignItems="center" justifyContent="center" borderWidth={3} borderColor="$primary">
+              {haySession ? (
+                <UserCheck size={44} color={COLORS.primary} />
+              ) : (
+                <User size={44} color={COLORS.primary} />
+              )}
+            </YStack>
+            <Text fontSize={22} fontWeight="800" color="$textPrimary">
+              {nombreUsuario}
             </Text>
-            <TouchableOpacity 
-              style={styles.bannerLoginBtn}
-              onPress={() => navigation.navigate('Registro')}
-            >
-              <Text style={styles.bannerLoginBtnText}>Crear cuenta gratis</Text>
+            {haySession ? (
+              <Text fontSize={16} color="$textSecondary">
+                Agricultor · Colima, MX
+              </Text>
+            ) : (
+              <YStack bg="$bgPrimary" px="$md" py={4} borderRadius="$full" borderWidth={1} borderColor="$border">
+                <Text fontSize={14} color="$textMuted" fontWeight="600">
+                  Modo invitado
+                </Text>
+              </YStack>
+            )}
+          </YStack>
+
+          {/* ── Banner: invitado ─────────────────────────────────── */}
+          {!haySession && (
+            <YStack mx="$lg" bg="$primaryBg" borderRadius="$lg" p="$lg" gap="$xs" borderWidth={1} borderColor="$primaryLight">
+              <Text fontSize={16} fontWeight="700" color="$primary">
+                Guarda tus escaneos
+              </Text>
+              <Text fontSize={14} color="$textSecondary" lineHeight={18}>
+                Crea una cuenta para sincronizar tus detecciones y verlas en el mapa regional.
+              </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Registro')} activeOpacity={0.85}>
+                <YStack bg="$primary" borderRadius="$md" py="$sm" alignItems="center" mt="$sm">
+                  <Text fontSize={16} fontWeight="700" color="$white">
+                    Crear cuenta gratis
+                  </Text>
+                </YStack>
+              </TouchableOpacity>
+            </YStack>
+          )}
+
+          {/* ── Preferencias ─────────────────────────────────────── */}
+          <SeccionMenu titulo="Preferencias">
+            <ItemSwitch
+              icon={Bell}
+              label="Notificaciones de alerta"
+              valor={notificaciones}
+              onChange={setNotificaciones}
+            />
+            <ItemSwitch
+              icon={WifiOff}
+              label="Modo sin conexión"
+              descripcion="La IA funciona sin internet"
+              valor={modoOffline}
+              onChange={setModoOffline}
+            />
+          </SeccionMenu>
+
+          {/* ── Sincronización ───────────────────────────────────── */}
+          <SeccionMenu titulo="Sincronización">
+            <ItemMenu
+              icon={Cloud}
+              label="Escaneos pendientes"
+              valor={haySession ? '0 pendientes' : '1 pendiente'}
+              onPress={() => {}}
+            />
+            <ItemMenu
+              icon={Clock}
+              label="Última sincronización"
+              valor="Hace 2 horas"
+              onPress={() => {}}
+            />
+          </SeccionMenu>
+
+          {/* ── Información ──────────────────────────────────────── */}
+          <SeccionMenu titulo="Información">
+            <ItemMenu
+              icon={ClipboardList}
+              label="Versión del modelo IA"
+              valor="v1.0-Colima"
+              onPress={() => {}}
+            />
+            <ItemMenu
+              icon={Shield}
+              label="Política de privacidad"
+              onPress={() => {}}
+            />
+          </SeccionMenu>
+
+          {/* ── Créditos ─────────────────────────────────────────── */}
+          <YStack alignItems="center" gap={4} py="$md">
+            <Text fontSize={32}>🐆</Text>
+            <Text fontSize={16} fontWeight="700" color="$primary">
+              CPI Jaguars
+            </Text>
+            <Text fontSize={12} color="$textMuted" textAlign="center">
+              Ian Olave · Carlos Ramírez · José Negrete
+            </Text>
+            <Text fontSize={12} color="$textMuted" textAlign="center">
+              TecNM · Instituto Tecnológico de Colima
+            </Text>
+          </YStack>
+
+          {/* ── Cerrar sesión ────────────────────────────────────── */}
+          {haySession && (
+            <TouchableOpacity onPress={handleCerrarSesion} activeOpacity={0.85}>
+              <YStack mx="$lg" bg="#FFF5F5" borderRadius="$lg" py="$md" alignItems="center" borderWidth={1} borderColor="#FEB2B2">
+                <XStack alignItems="center" gap="$sm">
+                  <LogOut size={20} color="#C53030" />
+                  <Text fontSize={16} fontWeight="700" color="#C53030">
+                    Cerrar sesión
+                  </Text>
+                </XStack>
+              </YStack>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
 
-        <SeccionMenu titulo="Preferencias">
-          <ItemSwitch
-            emoji="🔔"
-            label="Notificaciones de alerta"
-            valor={notificaciones}
-            onChange={setNotificaciones}
-          />
-          <ItemSwitch
-            emoji="📡"
-            label="Modo sin conexión"
-            descripcion="La IA funciona sin internet"
-            valor={modoOffline}
-            onChange={setModoOffline}
-          />
-        </SeccionMenu>
-
-        <SeccionMenu titulo="Sincronización">
-          <ItemMenu
-            emoji="☁️"
-            label="Escaneos pendientes"
-            valor={haySession ? "0 pendientes" : "1 pendiente"}
-            onPress={() => {}}
-          />
-          <ItemMenu
-            emoji="🕐"
-            label="Última sincronización"
-            valor="Hace 2 horas"
-            onPress={() => {}}
-          />
-        </SeccionMenu>
-
-        <SeccionMenu titulo="Información">
-          <ItemMenu
-            emoji="📋"
-            label="Versión del modelo IA"
-            valor="v1.0-Colima"
-            onPress={() => {}}
-          />
-          <ItemMenu
-            emoji="🛡"
-            label="Política de privacidad"
-            onPress={() => {}}
-          />
-        </SeccionMenu>
-
-        <View style={styles.creditos}>
-          <Text style={styles.creditosEmoji}>🐆</Text>
-          <Text style={styles.creditosTitulo}>CPI Jaguars</Text>
-          <Text style={styles.creditosSub}>Ian Olave · Carlos Ramírez · José Negrete</Text>
-          <Text style={styles.creditosSub}>TecNM · Instituto Tecnológico de Colima</Text>
-        </View>
-
-        {haySession && (
-          <TouchableOpacity
-            style={styles.btnCerrarSesion}
-            onPress={handleCerrarSesion}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.btnCerrarSesionText}>🚪 Cerrar sesión</Text>
-          </TouchableOpacity>
-        )}
+        </YStack>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const SeccionMenu = ({ titulo, children }: any) => (
-  <View style={styles.seccion}>
-    <Text style={styles.seccionTitulo}>{titulo}</Text>
-    <View style={styles.seccionCard}>{children}</View>
-  </View>
+// ── Subcomponente: Sección de menú ─────────────────────────────────
+const SeccionMenu = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
+  <YStack px="$lg" gap="$xs">
+    <Text fontSize={12} fontWeight="700" color="$textMuted" textTransform="uppercase" letterSpacing={1}>
+      {titulo}
+    </Text>
+    <YStack bg="$white" borderRadius="$lg" borderWidth={1} borderColor="$border" overflow="hidden">
+      {children}
+    </YStack>
+  </YStack>
 );
 
-const ItemSwitch = ({ emoji, label, descripcion, valor, onChange }: any) => (
-  <View style={styles.itemRow}>
-    <Text style={styles.itemEmoji}>{emoji}</Text>
-    <View style={styles.itemInfo}>
-      <Text style={styles.itemLabel}>{label}</Text>
-      {descripcion && <Text style={styles.itemDesc}>{descripcion}</Text>}
-    </View>
+// ── Subcomponente: Item con switch ─────────────────────────────────
+const ItemSwitch = ({
+  icon: Icon,
+  label,
+  descripcion,
+  valor,
+  onChange,
+}: {
+  icon: React.ElementType;
+  label: string;
+  descripcion?: string;
+  valor: boolean;
+  onChange: (v: boolean) => void;
+}) => (
+  <XStack alignItems="center" px="$md" py="$md" gap="$md" borderBottomWidth={0.5} borderBottomColor="$border">
+    <Icon size={20} color={COLORS.primary} />
+    <YStack flex={1}>
+      <Text fontSize={16} color="$textPrimary" fontWeight="500">
+        {label}
+      </Text>
+      {descripcion && (
+        <Text fontSize={12} color="$textMuted" mt={2}>
+          {descripcion}
+        </Text>
+      )}
+    </YStack>
     <Switch
       value={valor}
       onValueChange={onChange}
       trackColor={{ true: COLORS.primary + '80', false: COLORS.border }}
       thumbColor={valor ? COLORS.primary : '#f4f3f4'}
     />
-  </View>
+  </XStack>
 );
 
-const ItemMenu = ({ emoji, label, valor, onPress }: any) => (
-  <TouchableOpacity style={styles.itemRow} onPress={onPress} activeOpacity={0.7}>
-    <Text style={styles.itemEmoji}>{emoji}</Text>
-    <Text style={styles.itemLabel}>{label}</Text>
-    {/* CORRECCIÓN: Se eliminó el estilo inline flex:1 y se usa styles.spacer */}
-    <View style={styles.spacer} />
-    {valor && <Text style={styles.itemValor}>{valor}</Text>}
-    <Text style={styles.itemFlecha}>›</Text>
+// ── Subcomponente: Item de menú ────────────────────────────────────
+const ItemMenu = ({
+  icon: Icon,
+  label,
+  valor,
+  onPress,
+}: {
+  icon: React.ElementType;
+  label: string;
+  valor?: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+    <XStack alignItems="center" px="$md" py="$md" gap="$md" borderBottomWidth={0.5} borderBottomColor="$border">
+      <Icon size={20} color={COLORS.primary} />
+      <Text fontSize={16} color="$textPrimary" fontWeight="500">
+        {label}
+      </Text>
+      <YStack flex={1} />
+      {valor && (
+        <Text fontSize={14} color="$textMuted">
+          {valor}
+        </Text>
+      )}
+      <ChevronRight size={18} color={COLORS.textMuted} />
+    </XStack>
   </TouchableOpacity>
 );
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bgPrimary },
-  scroll: { paddingBottom: SPACING.xxl, gap: SPACING.lg },
-  perfilHeader: {
-    alignItems: 'center',
-    paddingTop: SPACING.xxl,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.white,
-    gap: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  avatarContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.bgPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.primary,
-  },
-  avatarEmoji: { fontSize: 44 },
-  nombreUsuario: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary },
-  rolUsuario: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
-  guestBadge: {
-    backgroundColor: COLORS.bgPrimary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  guestBadgeText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, fontWeight: FONT_WEIGHT.semibold },
-  bannerLogin: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.primary + '10',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    gap: SPACING.xs,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '30',
-  },
-  bannerLoginTitulo: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
-  bannerLoginSub: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, lineHeight: 18 },
-  bannerLoginBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  bannerLoginBtnText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.white },
-  seccion: { paddingHorizontal: SPACING.lg, gap: SPACING.xs },
-  seccionTitulo: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  seccionCard: { backgroundColor: COLORS.white, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, gap: SPACING.md, borderBottomWidth: 0.5, borderBottomColor: COLORS.border },
-  itemEmoji: { fontSize: 20 },
-  itemInfo: { flex: 1 },
-  itemLabel: { fontSize: FONT_SIZE.md, color: COLORS.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  itemDesc: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
-  itemValor: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
-  itemFlecha: { fontSize: FONT_SIZE.lg, color: COLORS.textMuted },
-  spacer: { flex: 1 }, // Estilo para reemplazar el inline style
-  creditos: { alignItems: 'center', gap: 4, paddingVertical: SPACING.md },
-  creditosEmoji: { fontSize: 32 },
-  creditosTitulo: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
-  creditosSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
-  btnCerrarSesion: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: '#FFF5F5',
-    borderRadius: RADIUS.lg,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FEB2B2',
-  },
-  btnCerrarSesionText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: '#C53030' },
-});
 
 export default PerfilScreen;

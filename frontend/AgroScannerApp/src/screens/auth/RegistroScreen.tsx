@@ -1,12 +1,36 @@
+/**
+ * @file src/screens/auth/RegistroScreen.tsx
+ * @description Pantalla de registro de nuevo usuario.
+ * Permite crear una cuenta con nombre, correo y contraseña.
+ *
+ * Migración UI/UX:
+ * - Layout reemplazado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
+ * - Inputs nativos reemplazados por componente Input de Tamagui.
+ * - Iconos de emojis migrados a vectoriales de Lucide React Native.
+ * - Agregado SafeAreaView para proteger notch/barra de estado.
+ * - Eliminados campos redundantes (ubicación y nombre de parcela)
+ *   que se gestionan en flujos posteriores de la app.
+ *
+ * @author AgroScanner Team
+ */
+
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  StatusBar, KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { YStack, XStack, Text, Input } from 'tamagui';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SHADOW } from '../../constants';
+import { COLORS, SHADOW } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'Registro'>;
@@ -17,14 +41,16 @@ const RegistroScreen = ({ navigation }: Props) => {
   const [correo,     setCorreo]     = useState('');
   const [password,   setPassword]   = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
-  const [parcela,    setParcela]    = useState('');
-  const [_telefono, _setTelefono] = useState('');
   const [verPwd,     setVerPwd]     = useState(false);
   const [cargando,   setCargando]   = useState(false);
   const [errores, setErrores] = useState({
     nombre: '', correo: '', password: '', confirmPwd: '',
   });
 
+  /**
+   * Valida los campos del formulario antes de enviar.
+   * @returns true si todos los campos son válidos.
+   */
   const validar = (): boolean => {
     const e = { nombre: '', correo: '', password: '', confirmPwd: '' };
     let ok = true;
@@ -36,149 +62,218 @@ const RegistroScreen = ({ navigation }: Props) => {
     return ok;
   };
 
+  /**
+   * Handler de envío del formulario de registro.
+   * Simula creación de cuenta con timeout y navega al Home.
+   */
   const handleRegistro = async () => {
     if (!validar()) return;
     setCargando(true);
     await new Promise<void>((resolve) => setTimeout(resolve, 1500));
     setCargando(false);
-    Alert.alert('¡Cuenta creada! ✅', 'Tu cuenta fue creada exitosamente.', [
+    Alert.alert('¡Cuenta creada!', 'Tu cuenta fue creada exitosamente.', [
       { text: 'Continuar', onPress: () => navigation.navigate('Home') },
     ]);
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.kav}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Regresar</Text>
-        </TouchableOpacity>
-
-        {/* Logo */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image source={require('../../../assets/jaguar.png')} style={styles.logoImage} resizeMode="contain" />
-          </View>
-          <Text style={styles.title}>CREAR NUEVA CUENTA</Text>
-          <Text style={styles.subtitle}>
-            Registra tu cuenta para guardar y sincronizar tus escaneos
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <Campo label="Nombre Completo *" placeholder="Ej. Carlos Ramírez"
-            value={nombre} onChangeText={setNombre} error={errores.nombre} />
-          <Campo label="Correo Electrónico *" placeholder="correo@ejemplo.com"
-            value={correo} onChangeText={setCorreo} error={errores.correo}
-            keyboardType="email-address" autoCapitalize="none" />
-          <Campo label="Ubicación *" placeholder="Ej. Colima, México"
-            value={parcela} onChangeText={setParcela} />
-          <Campo label="Nombre de la Parcela *" placeholder="Ej. Rancho El Jaguar"
-            value={parcela} onChangeText={setParcela} />
-          <Campo label="Contraseña *" placeholder="••••••••••"
-            value={password} onChangeText={setPassword} error={errores.password}
-            secureTextEntry={!verPwd}
-            rightElement={
-              <TouchableOpacity style={styles.eyeBtn} onPress={() => setVerPwd(v => !v)}>
-                <Text style={styles.eyeIcon}>{verPwd ? '🙈' : '👁️'}</Text>
-              </TouchableOpacity>
-            }
-          />
-          <Campo label="Confirmar Contraseña *" placeholder="••••••••••"
-            value={confirmPwd} onChangeText={setConfirmPwd}
-            error={errores.confirmPwd} secureTextEntry={!verPwd} />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.btnRegistrar, cargando && styles.btnDisabled]}
-          onPress={handleRegistro} disabled={cargando} activeOpacity={0.85}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {cargando
-            ? <ActivityIndicator color={COLORS.white} size="small" />
-            : <Text style={styles.btnRegistrarText}>CREAR CUENTA</Text>
-          }
-        </TouchableOpacity>
 
-        <View style={styles.loginRow}>
-          <Text style={styles.loginLabel}>¿Ya tienes cuenta? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.loginLink}>Inicia sesión</Text>
+          {/* ── Botón regresar ─────────────────────────────────── */}
+          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <XStack alignItems="center" gap="$xs" mb="$lg">
+              <ChevronLeft size={20} color={COLORS.primary} />
+              <Text fontSize={16} fontWeight="600" color="$primary">
+                Regresar
+              </Text>
+            </XStack>
           </TouchableOpacity>
-        </View>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* ── Header: logo + título ──────────────────────────── */}
+          <YStack alignItems="center" mb="$xl" gap="$sm">
+            <YStack width={80} height={80} borderRadius="$full" bg="$bgCard" alignItems="center" justifyContent="center" borderWidth={2.5} borderColor="$primary" style={SHADOW.md}>
+              <Image source={require('../../../assets/jaguar.png')} style={{ width: 58, height: 58 }} resizeMode="contain" />
+            </YStack>
+            <Text fontSize={22} fontWeight="800" color="$primary" letterSpacing={1} textAlign="center">
+              CREAR NUEVA CUENTA
+            </Text>
+            <Text fontSize={16} color="$textSecondary" textAlign="center" lineHeight={22}>
+              Registra tu cuenta para guardar y sincronizar tus escaneos
+            </Text>
+          </YStack>
+
+          {/* ── Formulario ─────────────────────────────────────── */}
+          <YStack gap="$md" mb="$xl">
+
+            <Campo
+              label="Nombre Completo *"
+              placeholder="Ej. Carlos Ramírez"
+              value={nombre}
+              onChangeText={setNombre}
+              error={errores.nombre}
+            />
+
+            <Campo
+              label="Correo Electrónico *"
+              placeholder="correo@ejemplo.com"
+              value={correo}
+              onChangeText={setCorreo}
+              error={errores.correo}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Campo
+              label="Contraseña *"
+              placeholder="••••••••••"
+              value={password}
+              onChangeText={setPassword}
+              error={errores.password}
+              secureTextEntry={!verPwd}
+              rightElement={
+                <TouchableOpacity
+                  style={{ position: 'absolute', right: 16, top: '25%' }}
+                  onPress={() => setVerPwd(v => !v)}
+                  activeOpacity={0.7}
+                >
+                  {verPwd ? (
+                    <EyeOff size={20} color={COLORS.textMuted} />
+                  ) : (
+                    <Eye size={20} color={COLORS.textMuted} />
+                  )}
+                </TouchableOpacity>
+              }
+            />
+
+            <Campo
+              label="Confirmar Contraseña *"
+              placeholder="••••••••••"
+              value={confirmPwd}
+              onChangeText={setConfirmPwd}
+              error={errores.confirmPwd}
+              secureTextEntry={!verPwd}
+            />
+
+          </YStack>
+
+          {/* ── Botón: Crear cuenta ────────────────────────────── */}
+          <TouchableOpacity
+            onPress={handleRegistro}
+            disabled={cargando}
+            activeOpacity={0.85}
+          >
+            <YStack
+              bg="$primary"
+              borderRadius="$xl"
+              py="$lg"
+              alignItems="center"
+              style={SHADOW.lg}
+              opacity={cargando ? 0.7 : 1}
+            >
+              {cargando ? (
+                <ActivityIndicator color={COLORS.white} size="small" />
+              ) : (
+                <Text fontSize={18} fontWeight="800" color="$white" letterSpacing={2}>
+                  CREAR CUENTA
+                </Text>
+              )}
+            </YStack>
+          </TouchableOpacity>
+
+          {/* ── Enlace: Login ──────────────────────────────────── */}
+          <XStack justifyContent="center" mt="$md">
+            <Text fontSize={16} color="$textSecondary">
+              ¿Ya tienes cuenta?{' '}
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text fontSize={16} fontWeight="700" color="$primary">
+                Inicia sesión
+              </Text>
+            </TouchableOpacity>
+          </XStack>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
+// ── Subcomponente: Campo de formulario ─────────────────────────────
+/**
+ * Campo reutilizable de formulario con label, input y mensaje de error.
+ *
+ * @param label           Texto descriptivo del campo.
+ * @param placeholder     Placeholder del input.
+ * @param value           Valor actual del input.
+ * @param onChangeText    Handler de cambio de texto.
+ * @param error           Mensaje de error (opcional).
+ * @param secureTextEntry Ocultar texto (contraseña).
+ * @param keyboardType    Tipo de teclado del input.
+ * @param autoCapitalize  Configuración de capitalización.
+ * @param rightElement    Elemento adicional a la derecha (ej. botón de ojo).
+ */
 const Campo = ({
-  label, placeholder, value, onChangeText, error,
-  secureTextEntry, keyboardType, autoCapitalize, rightElement,
-}: any) => (
-  <View style={styles.fieldGroup}>
-    <Text style={styles.label}>{label}</Text>
-    <View style={styles.inputWrapper}>
-      <TextInput
-        style={[styles.input, error && styles.inputError, rightElement && styles.inputWithRight]}
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  error,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  rightElement,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address';
+  autoCapitalize?: 'none' | 'words';
+  rightElement?: React.ReactNode;
+}) => (
+  <YStack gap="$xs">
+    <Text fontSize={16} fontWeight="600" color="$primary">
+      {label}
+    </Text>
+    <YStack position="relative">
+      <Input
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textMuted}
-        value={value} onChangeText={onChangeText}
+        value={value}
+        onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType ?? 'default'}
         autoCapitalize={autoCapitalize ?? 'words'}
+        borderWidth={1.5}
+        borderRadius="$lg"
+        py="$md"
+        px="$md"
+        pr={rightElement ? '$xxl' : '$md'}
+        fontSize={16}
+        color="$textPrimary"
+        bg="$bgCard"
+        style={{ ...SHADOW.sm, borderColor: error ? COLORS.danger : COLORS.border }}
       />
       {rightElement}
-    </View>
-    {error ? <Text style={styles.errorText}>⚠ {error}</Text> : null}
-  </View>
+    </YStack>
+    {error ? (
+      <Text fontSize={14} color="$danger">
+        {error}
+      </Text>
+    ) : null}
+  </YStack>
 );
 
 export default RegistroScreen;
-
-const styles = StyleSheet.create({
-  kav:    { flex: 1, backgroundColor: COLORS.bgPrimary },
-  scroll: { flexGrow: 1, paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl, paddingBottom: SPACING.xxl },
-  backBtn:   { marginBottom: SPACING.md },
-  backText:  { fontSize: FONT_SIZE.md, color: COLORS.primary, fontWeight: FONT_WEIGHT.semibold },
-  header:    { alignItems: 'center', marginBottom: SPACING.xl, gap: SPACING.sm },
-  logoContainer: {
-    width: 80, height: 80, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.bgCard, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: COLORS.primary, ...SHADOW.md,
-  },
-  logoImage: { width: 58, height: 58 },
-  title:    { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.primary, letterSpacing: 1, textAlign: 'center' },
-  subtitle: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22 },
-  form:     { gap: SPACING.md, marginBottom: SPACING.xl },
-  fieldGroup:    { gap: SPACING.xs },
-  label:         { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primary },
-  errorText:     { fontSize: FONT_SIZE.sm, color: COLORS.danger },
-  inputWrapper:  { position: 'relative' },
-  input: {
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    fontSize: FONT_SIZE.md, color: COLORS.textPrimary, ...SHADOW.sm,
-  },
-  inputError:    { borderColor: COLORS.danger },
-  inputWithRight: { paddingRight: 56 },
-  eyeBtn:        { position: 'absolute', right: SPACING.md, top: '20%' },
-  eyeIcon:       { fontSize: 20 },
-  btnRegistrar: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.xl,
-    paddingVertical: SPACING.lg, alignItems: 'center',
-    marginBottom: SPACING.md, ...SHADOW.lg,
-  },
-  btnDisabled:      { opacity: 0.7 },
-  btnRegistrarText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.white, letterSpacing: 2 },
-  loginRow:   { flexDirection: 'row', justifyContent: 'center' },
-  loginLabel: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
-  loginLink:  { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
-});

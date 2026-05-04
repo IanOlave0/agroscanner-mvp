@@ -19,6 +19,7 @@ import {
   StatusBar, Animated, Image, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
 import { YStack, XStack, Text } from 'tamagui';
+import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
@@ -96,7 +97,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
           {/* Contenedor circular del logo institucional (jaguar) */}
           <YStack width={130} height={130} borderRadius="$full" bg="$bgCard" alignItems="center" justifyContent="center" borderWidth={3} borderColor="$primary" style={SHADOW.lg} mb="$sm">
             <Image
-              source={require('../../../assets/jaguar.png')}
+              source={require('../../../assets/logo/jaguar.png')}
               style={{ width: 100, height: 100 }}
               resizeMode="contain"
             />
@@ -114,9 +115,9 @@ const WelcomeScreen = ({ navigation }: Props) => {
 
           {/* ── Chips de cultivos soportados ─────────────────────── */}
           <XStack gap="$sm" mt="$md">
-            <CultivoChip emoji="🍋" nombre="Limón" color="#F9A825" />
-            <CultivoChip emoji="🍈" nombre="Papaya" color="#E65100" />
-            <CultivoChip emoji="🍌" nombre="Plátano" color="#2E7D32" />
+            <CultivoChip icono={<LimonIcon width={28} height={28} />} nombre="Limón" color="#8BC34A" />
+            <CultivoChip icono={<PapayaIcon width={28} height={28} />} nombre="Papaya" color="#E65100" />
+            <CultivoChip icono={<PlatanoIcon width={28} height={28} />} nombre="Plátano" color="#F9A825" />
           </XStack>
         </YStack>
       </Animated.View>
@@ -191,19 +192,19 @@ const WelcomeScreen = ({ navigation }: Props) => {
 
 // ── Subcomponente: Chip de cultivo ─────────────────────────────────
 /**
- * Representa visualmente un cultivo soportado con emoji y nombre.
+ * Representa visualmente un cultivo soportado con icono vectorial y nombre.
  *
- * @param emoji  Emoji representativo del cultivo.
+ * @param icono  Elemento React del icono SVG del cultivo.
  * @param nombre Nombre del cultivo (ej. "Limón").
  * @param color  Código HEX del color de acento para el borde y texto.
  */
 const CultivoChip = ({
-  emoji, nombre, color,
+  icono, nombre, color,
 }: {
-  emoji: string; nombre: string; color: string;
+  icono: React.ReactNode; nombre: string; color: string;
 }) => (
-  <YStack alignItems="center" bg="$bgCard" borderRadius="$lg" borderWidth={1.5} borderColor={color + '60'} py="$sm" px="$md" gap={4} style={SHADOW.sm}>
-    <Text fontSize={28}>{emoji}</Text>
+  <YStack alignItems="center" bg="$bgCard" borderRadius="$lg" borderWidth={1.5} borderColor={color} py="$sm" px="$sm" gap={4} style={SHADOW.sm} width={96}>
+    {icono}
     <Text fontSize={14} fontWeight="700" color={color}>
       {nombre}
     </Text>

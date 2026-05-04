@@ -14,6 +14,7 @@ import {
   COLORS, FONT_SIZE, FONT_WEIGHT,
   SPACING, RADIUS, CULTIVOS,
 } from '../../constants';
+import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'SeleccionCultivo'>;
@@ -26,6 +27,15 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
     CULTIVOS.papaya,
     CULTIVOS.platano,
   ];
+
+  const getIconoCultivo = (id: number, size: number) => {
+    switch (id) {
+      case 1: return <LimonIcon width={size} height={size} />;
+      case 2: return <PapayaIcon width={size} height={size} />;
+      case 3: return <PlatanoIcon width={size} height={size} />;
+      default: return null;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -62,7 +72,7 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
           {cultivos.map((cultivo) => (
             <TouchableOpacity
               key={cultivo.id}
-              style={styles.tarjeta}
+              style={[styles.tarjeta, { borderColor: cultivo.color, borderWidth: 1.5 }]}
               onPress={() => navigation.navigate('Camara', {
                 cultivoId:     cultivo.id,
                 cultivoNombre: cultivo.nombre,
@@ -74,12 +84,12 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
                 styles.emojiContainer,
                 { backgroundColor: cultivo.colorFondo },
               ]}>
-                <Text style={styles.emoji}>{cultivo.emoji}</Text>
+                {getIconoCultivo(cultivo.id, 44)}
               </View>
 
               {/* Info del cultivo */}
               <View style={styles.info}>
-                <Text style={styles.nombre}>{cultivo.nombre}</Text>
+                <Text style={[styles.nombre, { color: cultivo.color }]}>{cultivo.nombre}</Text>
                 <Text style={styles.descripcion}>{cultivo.descripcion}</Text>
                 <View style={[
                   styles.enfermBadge,
@@ -89,7 +99,7 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
                     styles.enfermText,
                     { color: cultivo.color },
                   ]}>
-                    ⚠ {cultivo.enfermedad}
+                    {cultivo.enfermedad}
                   </Text>
                 </View>
               </View>
@@ -187,7 +197,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: {
-    fontSize: 44,
+    width:  44,
+    height: 44,
   },
   info: {
     flex: 1,

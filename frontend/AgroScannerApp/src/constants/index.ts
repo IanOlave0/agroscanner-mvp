@@ -125,17 +125,15 @@ export const CULTIVOS = {
   limon: {
     id:          1,
     nombre:      'Limón Mexicano',
-    emoji:       '🍋',
     enfermedad:  'HLB (Dragón Amarillo)',
-    color:       '#F9A825',
-    colorFondo:  '#FFFDE7',
-    colorBorde:  '#F4A825',
+    color:       '#8BC34A',
+    colorFondo:  '#F1F8E9',
+    colorBorde:  '#7CB342',
     descripcion: 'Detecta Huanglongbing en hojas de limón',
   },
   papaya: {
     id:          2,
     nombre:      'Papaya',
-    emoji:       '🥭',
     enfermedad:  'Araña Roja',
     color:       '#E65100',
     colorFondo:  '#FFF3E0',
@@ -145,11 +143,10 @@ export const CULTIVOS = {
   platano: {
     id:          3,
     nombre:      'Plátano',
-    emoji:       '🍌',
     enfermedad:  'Sigatoka Negra',
-    color:       '#2E7D32',
-    colorFondo:  '#E8F5E9',
-    colorBorde:  '#43A047',
+    color:       '#F9A825',
+    colorFondo:  '#FFFDE7',
+    colorBorde:  '#F4A825',
     descripcion: 'Detecta Mycosphaerella fijiensis en hojas de plátano',
   },
 };
@@ -174,5 +171,5 @@ export const STORAGE = {
 // ASSETS — Imágenes de la app
 // ─────────────────────────────────────────
 //export const IMAGES = {
- // logo: require('../../assets/jaguar.png'),
+  // logo: require('../../assets/logo/jaguar.png'),
 //};

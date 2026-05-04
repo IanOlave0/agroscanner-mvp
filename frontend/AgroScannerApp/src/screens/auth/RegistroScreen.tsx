@@ -103,7 +103,7 @@ const RegistroScreen = ({ navigation }: Props) => {
           {/* ── Header: logo + título ──────────────────────────── */}
           <YStack alignItems="center" mb="$xl" gap="$sm">
             <YStack width={80} height={80} borderRadius="$full" bg="$bgCard" alignItems="center" justifyContent="center" borderWidth={2.5} borderColor="$primary" style={SHADOW.md}>
-              <Image source={require('../../../assets/jaguar.png')} style={{ width: 58, height: 58 }} resizeMode="contain" />
+              <Image source={require('../../../assets/logo/jaguar.png')} style={{ width: 58, height: 58 }} resizeMode="contain" />
             </YStack>
             <Text fontSize={22} fontWeight="800" color="$primary" letterSpacing={1} textAlign="center">
               CREAR NUEVA CUENTA

@@ -1,24 +1,33 @@
 /**
- * Pantalla de Decisión de Resultado
- * 
- * Flujo inteligente que bifurca según el contexto del usuario:
- * - SIN CUENTA: Muestra resultado sin guardar + CTA para registrarse
- * - CON CUENTA + SIN PARCELAS: Prompt para crear parcela primero
- * - CON CUENTA + CON PARCELAS: Navega a PinPlacementScreen
- * 
- * IMPORTANTE:
- * - Usuarios sin cuenta NO guardan detecciones (no tienen usuario_id válido)
- * - Solo usuarios con cuenta y parcelas pueden geolocalizar detecciones
+ * @file src/screens/scanner/ResultadoDecisionScreen.tsx
+ * @description Pantalla de decisión post-resultado.
+ * Bifurca el flujo según el contexto del usuario:
+ * - SIN CUENTA: Muestra resultado + CTA para registrarse
+ * - CON CUENTA + SIN PARCELAS: Prompt para crear parcela
+ * - CON CUENTA + CON PARCELAS: Auto-navega a PinPlacementScreen
+ *
+ * Migración UI/UX:
+ * - Header tipo ticket con muescas laterales, versión compacta.
+ * - Iconos animados (pulse/bounce) según estado del flujo.
+ * - Layout en stacks de Tamagui (YStack, XStack).
+ *
+ * @author AgroScanner Team
  */
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, StatusBar } from 'react-native';
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParams, ResultadoIA } from '../../types';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { YStack, XStack, Text } from 'tamagui';
+import { MapPin, AlertTriangle, CheckCircle2, UserPlus } from 'lucide-react-native';
+
+import { COLORS, SHADOW } from '../../constants';
+import { RootStackParams } from '../../types';
 import { getUsuarioActivo, getParcelasByUsuario } from '../../database/queries';
-import { Usuario, Parcela } from '../../types';
+import { Usuario } from '../../types';
 
 type ResultadoDecisionNavigationProp = NativeStackNavigationProp<RootStackParams, 'ResultadoDecision'>;
 type ResultadoDecisionRouteProp = RouteProp<RootStackParams, 'ResultadoDecision'>;
@@ -28,39 +37,106 @@ type Props = {
   route: ResultadoDecisionRouteProp;
 };
 
+// ── Icono con animación pulse (lateo) ────────────────────────────────
+const AnimatedPulseIcon = ({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color: string;
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.15, duration: 800, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.0,  duration: 800, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
+// ── Icono con animación bounce (rebote Y) ────────────────────────────
+const AnimatedBounceIcon = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, { toValue: -10, duration: 500, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0,   duration: 500, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
 export default function ResultadoDecisionScreen({ navigation, route }: Props) {
-  const { resultado, imagenUri, cultivoId } = route.params;
-  
+  const { resultado, imagenUri, cultivoId, cultivoNombre } = route.params;
+
   const [loading, setLoading] = useState(true);
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [tieneParcelas, setTieneParcelas] = useState(false);
   const [flujo, setFlujo] = useState<'sin_cuenta' | 'sin_parcelas' | 'con_parcelas' | null>(null);
+
+  const confianzaPct = (resultado.confianza * 100).toFixed(0);
+  const esPositivo = resultado.resultado_positivo;
+  const colorHeader = esPositivo ? COLORS.danger : COLORS.success;
+  const IconoResultado = esPositivo ? AlertTriangle : CheckCircle2;
+  const textoHeader = esPositivo ? 'Probabilidad de infección' : 'Planta sana';
 
   useEffect(() => {
     verificarContexto();
   }, []);
 
   /**
-   * Verifica el contexto del usuario y determina el flujo apropiado
+   * Navegación post-render para el flujo con parcelas.
+   * Se ejecuta en un efecto para evitar mutaciones durante el render.
+   */
+  useEffect(() => {
+    if (flujo === 'con_parcelas') {
+      navigation.replace('PinPlacement', {
+        resultado,
+        imagenUri,
+        cultivoId,
+        cultivoNombre,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flujo]);
+
+  /**
+   * Verifica el contexto del usuario y determina el flujo apropiado.
    */
   const verificarContexto = async () => {
     try {
       const user = await getUsuarioActivo() as Usuario | null;
-      
+
       if (!user || !user.token) {
-        // Usuario sin cuenta
-        setUsuario(null);
         setFlujo('sin_cuenta');
       } else {
-        setUsuario(user);
-        
-        // Verificar si tiene parcelas
         const parcelas = await getParcelasByUsuario(user.id);
         if (parcelas.length > 0) {
-          setTieneParcelas(true);
           setFlujo('con_parcelas');
         } else {
-          setTieneParcelas(false);
           setFlujo('sin_parcelas');
         }
       }
@@ -72,330 +148,179 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
     }
   };
 
-  /**
-   * Flujo: Usuario sin cuenta
-   * Muestra resultado sin guardar + CTA para registrarse
-   */
-  const renderSinCuenta = () => (
-    <View style={styles.content}>
-      {/* Header de resultado */}
-      <View style={[styles.header, { backgroundColor: resultado.resultado_positivo ? COLORS.danger : COLORS.success }]}>
-        <Text style={styles.headerLabel}>Resultado del Análisis</Text>
-        <Text style={styles.headerPorcentaje}>{(resultado.confianza * 100).toFixed(0)}%</Text>
-        <Text style={styles.headerConfianza}>
-          {resultado.resultado_positivo ? 'Probabilidad de infección' : 'Planta sana'}
-        </Text>
-      </View>
-
-      {/* Tarjeta de diagnóstico */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Enfermedad detectada:</Text>
-        <Text style={[styles.cardPrincipal, { color: resultado.resultado_positivo ? COLORS.danger : COLORS.success }]}>
-          {resultado.enfermedad}
-        </Text>
-        <View style={styles.divider} />
-        <Text style={styles.cardLabel}>Tratamiento sugerido:</Text>
-        <Text style={styles.cardSub}>{resultado.tratamiento}</Text>
-      </View>
-
-      {/* CTA Registro */}
-      <View style={styles.ctaContainer}>
-        <View style={styles.ctaCard}>
-          <Text style={styles.ctaIcon}>📍</Text>
-          <Text style={styles.ctaTitle}>¿Quieres geolocalizar tus detecciones?</Text>
-          <Text style={styles.ctaText}>
-            Crea una cuenta para registrar tus parcelas y ubicar exactamente dónde están las plantas enfermas.
-          </Text>
-          <TouchableOpacity 
-            style={styles.ctaButton}
-            onPress={() => navigation.navigate('Welcome')}
-          >
-            <Text style={styles.ctaButtonText}>Crear cuenta gratis</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Botones de acción */}
-      <View style={styles.btnGroup}>
-        <TouchableOpacity 
-          style={styles.btnVolver} 
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.btnVolverText}>Volver al inicio</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  /**
-   * Flujo: Usuario con cuenta pero sin parcelas
-   * Prompt para crear parcela primero
-   */
-  const renderSinParcelas = () => (
-    <View style={styles.content}>
-      {/* Header de resultado */}
-      <View style={[styles.header, { backgroundColor: resultado.resultado_positivo ? COLORS.danger : COLORS.success }]}>
-        <Text style={styles.headerLabel}>Resultado del Análisis</Text>
-        <Text style={styles.headerPorcentaje}>{(resultado.confianza * 100).toFixed(0)}%</Text>
-        <Text style={styles.headerConfianza}>
-          {resultado.resultado_positivo ? 'Probabilidad de infección' : 'Planta sana'}
-        </Text>
-      </View>
-
-      {/* Tarjeta de diagnóstico */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Enfermedad detectada:</Text>
-        <Text style={[styles.cardPrincipal, { color: resultado.resultado_positivo ? COLORS.danger : COLORS.success }]}>
-          {resultado.enfermedad}
-        </Text>
-        <View style={styles.divider} />
-        <Text style={styles.cardLabel}>Tratamiento sugerido:</Text>
-        <Text style={styles.cardSub}>{resultado.tratamiento}</Text>
-      </View>
-
-      {/* Prompt para crear parcela */}
-      <View style={styles.promptContainer}>
-        <View style={styles.promptCard}>
-          <Text style={styles.promptIcon}>📐</Text>
-          <Text style={styles.promptTitle}>Necesitas registrar una parcela</Text>
-          <Text style={styles.promptText}>
-            Para guardar esta detección con ubicación exacta, primero debes dibujar al menos una parcela en el mapa.
-          </Text>
-          <View style={styles.promptButtons}>
-            <TouchableOpacity 
-              style={styles.promptButton}
-              onPress={() => navigation.navigate('ParcelaCanvas', { parcelaId: undefined })}
-            >
-              <Text style={styles.promptButtonText}>Crear mi primera parcela</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Botones de acción */}
-      <View style={styles.btnGroup}>
-        <TouchableOpacity 
-          style={styles.btnSecundario}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.btnSecundarioText}>Volver al inicio</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  /**
-   * Flujo: Usuario con cuenta y con parcelas
-   * Navega a PinPlacementScreen
-   */
-  const renderConParcelas = () => {
-    // Auto-navegar a PinPlacement
-    navigation.replace('PinPlacement', { resultado, imagenUri, cultivoId });
-    return null;
-  };
-
+  // ── Estado de carga ──────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bgPrimary }} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Verificando tu cuenta...</Text>
+        <Text fontSize={16} color="$textSecondary" mt="$md">
+          Verificando tu cuenta...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {flujo === 'sin_cuenta' && renderSinCuenta()}
-        {flujo === 'sin_parcelas' && renderSinParcelas()}
-        {flujo === 'con_parcelas' && renderConParcelas()}
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack gap="$lg" pt="$lg" pb="$xxl">
+
+          {/* ── Header tipo ticket compacto ──────────────────────── */}
+          <YStack mx="$lg" alignItems="center" justifyContent="center">
+            <YStack
+              bg={colorHeader}
+              p="$lg"
+              alignItems="center"
+              gap="$sm"
+              borderRadius="$2xl"
+              width="100%"
+              style={SHADOW.lg}
+            >
+              {/* Icono indicador dinámico — compacto */}
+              <IconoResultado size={32} color={COLORS.white} />
+
+              {/* Título secundario */}
+              <Text fontSize={14} fontWeight="600" color="rgba(255,255,255,0.7)">
+                Resultado del Análisis
+              </Text>
+
+              {/* Porcentaje dominante — compacto */}
+              <Text fontSize={40} fontWeight="800" color="$white">
+                {confianzaPct}%
+              </Text>
+
+              {/* Subtítulo contextual */}
+              <Text fontSize={14} fontWeight="500" color="rgba(255,255,255,0.9)">
+                {textoHeader}
+              </Text>
+            </YStack>
+
+            {/* Muesca izquierda tipo ticket */}
+            <YStack position="absolute" left={-10} top="50%" marginTop={-14}>
+              <YStack width={20} height={28} bg={COLORS.bgPrimary} borderRadius={999} />
+            </YStack>
+
+            {/* Muesca derecha tipo ticket */}
+            <YStack position="absolute" right={-10} top="50%" marginTop={-14}>
+              <YStack width={20} height={28} bg={COLORS.bgPrimary} borderRadius={999} />
+            </YStack>
+          </YStack>
+
+          {/* ── Contenido ────────────────────────────────────────── */}
+          <YStack px="$lg" gap="$lg">
+
+            {/* Card de diagnóstico */}
+            <YStack bg="$white" borderRadius="$lg" p="$lg" style={SHADOW.md}>
+              <Text fontSize={14} color="$textMuted" mb={4}>
+                Enfermedad detectada:
+              </Text>
+              <Text fontSize={22} fontWeight="700" color={colorHeader} mb={12}>
+                {resultado.enfermedad}
+              </Text>
+              <YStack height={1} bg="$border" my={12} />
+              <Text fontSize={14} color="$textMuted" mb={4}>
+                Tratamiento sugerido:
+              </Text>
+              <Text fontSize={16} color="$textSecondary" lineHeight={22}>
+                {resultado.tratamiento}
+              </Text>
+            </YStack>
+
+            {/* ── Flujo: Sin cuenta ──────────────────────────────── */}
+            {flujo === 'sin_cuenta' && (
+              <YStack gap="$lg">
+                <YStack
+                  bg="$primaryBg"
+                  borderRadius="$lg"
+                  p="$lg"
+                  borderWidth={1}
+                  borderColor="$primaryLight"
+                  alignItems="center"
+                  gap="$sm"
+                >
+                  {/* Icono animado pulse */}
+                  <AnimatedPulseIcon color={COLORS.primary}>
+                    <UserPlus size={48} color={COLORS.primary} />
+                  </AnimatedPulseIcon>
+
+                  <Text fontSize={18} fontWeight="700" color="$textPrimary" textAlign="center">
+                    ¿Quieres geolocalizar tus detecciones?
+                  </Text>
+                  <Text fontSize={14} color="$textSecondary" textAlign="center" lineHeight={22}>
+                    Crea una cuenta para registrar tus parcelas y ubicar exactamente dónde están las plantas enfermas.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Welcome')}
+                    activeOpacity={0.85}
+                  >
+                    <YStack bg="$primary" py="$md" px="$xl" borderRadius="$md" mt="$sm">
+                      <Text fontSize={16} fontWeight="600" color="$white">
+                        Crear cuenta gratis
+                      </Text>
+                    </YStack>
+                  </TouchableOpacity>
+                </YStack>
+
+                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                  <YStack p="$md" alignItems="center">
+                    <Text fontSize={16} fontWeight="600" color="$textMuted">
+                      Volver al inicio
+                    </Text>
+                  </YStack>
+                </TouchableOpacity>
+              </YStack>
+            )}
+
+            {/* ── Flujo: Sin parcelas ──────────────────────────────── */}
+            {flujo === 'sin_parcelas' && (
+              <YStack gap="$lg">
+                <YStack
+                  bg="$acentoLight"
+                  borderRadius="$lg"
+                  p="$lg"
+                  borderWidth={1}
+                  borderColor="$acento"
+                  alignItems="center"
+                  gap="$sm"
+                >
+                  {/* Icono animado bounce */}
+                  <AnimatedBounceIcon>
+                    <MapPin size={48} color={COLORS.acento} />
+                  </AnimatedBounceIcon>
+
+                  <Text fontSize={18} fontWeight="700" color="$textPrimary" textAlign="center">
+                    Necesitas registrar una parcela
+                  </Text>
+                  <Text fontSize={14} color="$textSecondary" textAlign="center" lineHeight={22}>
+                    Para guardar esta detección con ubicación exacta, primero debes dibujar al menos una parcela en el mapa.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('ParcelaCanvas', { parcelaId: undefined })}
+                    activeOpacity={0.85}
+                  >
+                    <YStack bg="$acento" py="$md" borderRadius="$md" alignItems="center" mt="$sm" width="100%">
+                      <Text fontSize={16} fontWeight="600" color="$white">
+                        Crear mi primera parcela
+                      </Text>
+                    </YStack>
+                  </TouchableOpacity>
+                </YStack>
+
+                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                  <YStack borderWidth={1} borderColor="$primary" borderRadius="$md" py="$md" alignItems="center">
+                    <Text fontSize={16} fontWeight="700" color="$primary">
+                      Volver al inicio
+                    </Text>
+                  </YStack>
+                </TouchableOpacity>
+              </YStack>
+            )}
+
+          </YStack>
+        </YStack>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgPrimary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgPrimary,
-    gap: SPACING.md,
-  },
-  loadingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  content: {
-    paddingBottom: SPACING.xxl,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    alignItems: 'center',
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
-  },
-  headerLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-  },
-  headerPorcentaje: {
-    color: COLORS.white,
-    fontSize: 64,
-    fontWeight: FONT_WEIGHT.extrabold,
-  },
-  headerConfianza: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.md,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginHorizontal: SPACING.lg,
-    marginTop: -30,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-  },
-  cardLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    marginBottom: 4,
-  },
-  cardPrincipal: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: FONT_WEIGHT.bold,
-    marginBottom: 12,
-  },
-  cardSub: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-    lineHeight: 22,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 12,
-  },
-  ctaContainer: {
-    padding: SPACING.lg,
-  },
-  ctaCard: {
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '30',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  ctaIcon: {
-    fontSize: 48,
-  },
-  ctaTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  ctaText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  ctaButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.md,
-    marginTop: SPACING.sm,
-  },
-  ctaButtonText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  promptContainer: {
-    padding: SPACING.lg,
-  },
-  promptCard: {
-    backgroundColor: COLORS.acentoLight,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.acento + '40',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  promptIcon: {
-    fontSize: 48,
-  },
-  promptTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  promptText: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  promptButtons: {
-    marginTop: SPACING.sm,
-    width: '100%',
-  },
-  promptButton: {
-    backgroundColor: COLORS.acento,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-  },
-  promptButtonText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  btnGroup: {
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    gap: SPACING.md,
-  },
-  btnVolver: {
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-  },
-  btnVolverText: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  btnSecundario: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-  },
-  btnSecundarioText: {
-    color: COLORS.primary,
-    fontWeight: FONT_WEIGHT.bold,
-    fontSize: FONT_SIZE.md,
-  },
-});

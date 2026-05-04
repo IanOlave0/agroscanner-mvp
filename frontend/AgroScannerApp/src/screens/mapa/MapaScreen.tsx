@@ -1,24 +1,36 @@
+/**
+ * @file src/screens/mapa/MapaScreen.tsx
+ * @description Pantalla de mapa epidemiológico con vista de heatmap y lista de zonas.
+ * Muestra estadísticas de la región y alertas activas.
+ *
+ * Migración UI/UX:
+ * - Layout migrado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
+ * - Iconos de emojis migrados a vectoriales de Lucide React Native y SVGs custom.
+ *
+ * @author AgroScanner Team
+ */
+
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Dimensions,
+  ScrollView, StatusBar, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { YStack, XStack, Text } from 'tamagui';
+import {
+  Map, List, BarChart3, AlertTriangle, AlertCircle, Info,
+} from 'lucide-react-native';
+
+import { COLORS } from '../../constants';
+import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
 
 const { width } = Dimensions.get('window');
 
-// ── Datos de ejemplo del mapa ─────────────
+// ── Datos de ejemplo del mapa ─────────────────────────────────────────
 // Cuando el backend esté listo, estos datos
 // vendrán de la API como coordenadas GPS reales
 // y se renderizarán con Google Maps SDK
 const STATS_MAPA = {
-  area_total_ha:   120,
+  area_total_ha:    120,
   zona_critica_pct: 15,
   zona_riesgo_pct:  35,
   zona_segura_pct:  50,
@@ -29,115 +41,185 @@ const STATS_MAPA = {
 // Zonas con brotes activos simuladas
 const ZONAS_ALERTA = [
   {
-    id:         1,
-    nombre:     'Parcela Norte — Tecomán',
-    enfermedad: 'HLB (Dragón Amarillo)',
-    cultivo:    '🍋 Limón',
-    nivel:      'critico',
+    id:          1,
+    nombre:      'Parcela Norte — Tecomán',
+    enfermedad:  'HLB (Dragón Amarillo)',
+    cultivo:     'Limón',
+    nivel:       'critico',
     detecciones: 8,
   },
   {
-    id:         2,
-    nombre:     'Rancho El Limonal — Armería',
-    enfermedad: 'Araña Roja',
-    cultivo:    '🍈 Papaya',
-    nivel:      'riesgo',
+    id:          2,
+    nombre:      'Rancho El Limonal — Armería',
+    enfermedad:  'Araña Roja',
+    cultivo:     'Papaya',
+    nivel:       'riesgo',
     detecciones: 5,
   },
   {
-    id:         3,
-    nombre:     'Huerta Sur — Tecomán',
-    enfermedad: 'Sigatoka Negra',
-    cultivo:    '🍌 Plátano',
-    nivel:      'riesgo',
+    id:          3,
+    nombre:      'Huerta Sur — Tecomán',
+    enfermedad:  'Sigatoka Negra',
+    cultivo:     'Plátano',
+    nivel:       'riesgo',
     detecciones: 3,
   },
 ];
+
+const ICONO_CULTIVO: Record<string, React.ReactNode> = {
+  Limón:   <LimonIcon   width={16} height={16} />,
+  Papaya:  <PapayaIcon  width={16} height={16} />,
+  Plátano: <PlatanoIcon width={16} height={16} />,
+};
 
 const MapaScreen = () => {
   const [vistaActiva, setVistaActiva] = useState<'mapa' | 'lista'>('mapa');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
       >
 
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.titulo}>Mapa de Calor</Text>
-          <Text style={styles.subtitulo}>
+        {/* ── Header ─────────────────────────────────────────── */}
+        <YStack px="$lg" pt="$xl" gap="$xs">
+          <Text fontSize={28} fontWeight="800" color="$textPrimary">
+            Mapa de Calor
+          </Text>
+          <Text fontSize={16} color="$textSecondary">
             Visualización epidemiológica de Colima
           </Text>
-        </View>
+        </YStack>
 
-        {/* ── Selector de vista ── */}
-        <View style={styles.selectorVista}>
+        {/* ── Selector de vista ──────────────────────────────── */}
+        <XStack
+          mx="$lg"
+          bg="$bgCard"
+          borderRadius="$lg"
+          p={4}
+          borderWidth={1}
+          borderColor="$border"
+          gap={4}
+        >
           <TouchableOpacity
-            style={[
-              styles.vistaBtn,
-              vistaActiva === 'mapa' && styles.vistaBtnActivo,
-            ]}
+            style={{ flex: 1 }}
             onPress={() => setVistaActiva('mapa')}
+            activeOpacity={0.85}
           >
-            <Text style={[
-              styles.vistaBtnText,
-              vistaActiva === 'mapa' && styles.vistaBtnTextActivo,
-            ]}>
-              🗺 Mapa
-            </Text>
+            <YStack
+              alignItems="center"
+              py="$sm"
+              borderRadius="$md"
+              bg={vistaActiva === 'mapa' ? COLORS.primary : 'transparent'}
+            >
+              <XStack alignItems="center" gap="$xs">
+                <Map
+                  size={18}
+                  color={vistaActiva === 'mapa' ? COLORS.white : COLORS.textSecondary}
+                />
+                <Text
+                  fontSize={16}
+                  fontWeight="700"
+                  color={vistaActiva === 'mapa' ? '$white' : '$textSecondary'}
+                >
+                  Mapa
+                </Text>
+              </XStack>
+            </YStack>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[
-              styles.vistaBtn,
-              vistaActiva === 'lista' && styles.vistaBtnActivo,
-            ]}
+            style={{ flex: 1 }}
             onPress={() => setVistaActiva('lista')}
+            activeOpacity={0.85}
           >
-            <Text style={[
-              styles.vistaBtnText,
-              vistaActiva === 'lista' && styles.vistaBtnTextActivo,
-            ]}>
-              📋 Zonas
-            </Text>
+            <YStack
+              alignItems="center"
+              py="$sm"
+              borderRadius="$md"
+              bg={vistaActiva === 'lista' ? COLORS.primary : 'transparent'}
+            >
+              <XStack alignItems="center" gap="$xs">
+                <List
+                  size={18}
+                  color={vistaActiva === 'lista' ? COLORS.white : COLORS.textSecondary}
+                />
+                <Text
+                  fontSize={16}
+                  fontWeight="700"
+                  color={vistaActiva === 'lista' ? '$white' : '$textSecondary'}
+                >
+                  Zonas
+                </Text>
+              </XStack>
+            </YStack>
           </TouchableOpacity>
-        </View>
+        </XStack>
 
         {vistaActiva === 'mapa' ? (
           <>
-            {/* ── Placeholder del mapa ── */}
-            {/* Aquí irá el Google Maps SDK cuando se integre */}
-            {/* Por ahora mostramos un placeholder visual */}
-            <View style={styles.mapaContainer}>
-              <View style={styles.mapaPlaceholder}>
-                <Text style={styles.mapaEmoji}>🗺️</Text>
-                <Text style={styles.mapaTitulo}>Mapa de Calor</Text>
-                <Text style={styles.mapaSubtitulo}>
+            {/* ── Placeholder del mapa ───────────────────────── */}
+            <YStack mx="$lg" gap="$md">
+              <YStack
+                height={280}
+                bg="$bgGreen"
+                borderRadius="$xl"
+                alignItems="center"
+                justifyContent="center"
+                borderWidth={2}
+                borderColor="$primaryLight"
+                borderStyle="dashed"
+                gap="$sm"
+                p="$lg"
+              >
+                <Map size={64} color={COLORS.primary} />
+                <Text fontSize={20} fontWeight="700" color="$primary">
+                  Mapa de Calor
+                </Text>
+                <Text fontSize={16} color="$textSecondary">
                   Colima, México
                 </Text>
-                <Text style={styles.mapaInfo}>
+                <Text fontSize={14} color="$textMuted" textAlign="center" lineHeight={20}>
                   El mapa interactivo con heatmap se integrará con Google Maps SDK en la siguiente fase del proyecto
                 </Text>
-              </View>
+              </YStack>
 
               {/* Leyenda del mapa */}
-              <View style={styles.leyenda}>
-                <Text style={styles.leyendaTitulo}>Leyenda</Text>
-                <View style={styles.leyendaItems}>
+              <YStack
+                bg="$bgCard"
+                borderRadius="$lg"
+                p="$md"
+                borderWidth={1}
+                borderColor="$border"
+                gap="$sm"
+              >
+                <Text fontSize={14} fontWeight="700" color="$textSecondary">
+                  Leyenda
+                </Text>
+                <XStack gap="$md">
                   <LeyendaItem color={COLORS.semaforoRojo}    label="Zona crítica" />
                   <LeyendaItem color={COLORS.semaforoAmarillo} label="Zona de riesgo" />
                   <LeyendaItem color={COLORS.semaforoVerde}   label="Zona segura" />
-                </View>
-              </View>
-            </View>
+                </XStack>
+              </YStack>
+            </YStack>
 
-            {/* ── Estadísticas del área ── */}
-            <Text style={styles.seccionTitulo}>📊 Estadísticas de la región</Text>
+            {/* ── Estadísticas de la región ──────────────────── */}
+            <XStack alignItems="center" gap="$sm" px="$lg">
+              <BarChart3 size={20} color={COLORS.primary} />
+              <Text fontSize={18} fontWeight="700" color="$textPrimary">
+                Estadísticas de la región
+              </Text>
+            </XStack>
 
-            <View style={styles.statsGrid}>
+            <XStack
+              flexWrap="wrap"
+              px="$lg"
+              gap="$sm"
+            >
               <StatBox
                 valor={`${STATS_MAPA.area_total_ha} Ha`}
                 label="Área total"
@@ -158,359 +240,162 @@ const MapaScreen = () => {
                 label="Zona segura"
                 color={COLORS.semaforoVerde}
               />
-            </View>
+            </XStack>
 
             {/* Detecciones hoy */}
-            <View style={styles.detectcionesHoy}>
-              <View style={styles.deteccionItem}>
-                <Text style={styles.deteccionNumero}>
+            <XStack
+              mx="$lg"
+              bg="$bgCard"
+              borderRadius="$lg"
+              p="$lg"
+              borderWidth={1}
+              borderColor="$border"
+            >
+              <YStack flex={1} alignItems="center" gap={4}>
+                <Text fontSize={32} fontWeight="800" color="$primary">
                   {STATS_MAPA.total_detecciones}
                 </Text>
-                <Text style={styles.deteccionLabel}>Total escaneos</Text>
-              </View>
-              <View style={styles.deteccionDivider} />
-              <View style={styles.deteccionItem}>
-                <Text style={[
-                  styles.deteccionNumero,
-                  { color: COLORS.danger },
-                ]}>
+                <Text fontSize={14} color="$textMuted">
+                  Total escaneos
+                </Text>
+              </YStack>
+
+              <YStack width={1} bg="$border" my="$xs" />
+
+              <YStack flex={1} alignItems="center" gap={4}>
+                <Text fontSize={32} fontWeight="800" color="$danger">
                   {STATS_MAPA.activas_hoy}
                 </Text>
-                <Text style={styles.deteccionLabel}>Alertas hoy</Text>
-              </View>
-            </View>
+                <Text fontSize={14} color="$textMuted">
+                  Alertas hoy
+                </Text>
+              </YStack>
+            </XStack>
           </>
         ) : (
           <>
-            {/* ── Vista de lista de zonas ── */}
-            <Text style={styles.seccionTitulo}>
-              ⚠ Zonas con brotes activos
-            </Text>
+            {/* ── Vista de lista de zonas ────────────────────── */}
+            <XStack alignItems="center" gap="$sm" px="$lg">
+              <AlertTriangle size={20} color={COLORS.danger} />
+              <Text fontSize={18} fontWeight="700" color="$textPrimary">
+                Zonas con brotes activos
+              </Text>
+            </XStack>
 
-            <View style={styles.zonasContainer}>
+            <YStack px="$lg" gap="$md">
               {ZONAS_ALERTA.map(zona => (
                 <ZonaCard key={zona.id} zona={zona} />
               ))}
-            </View>
+            </YStack>
           </>
         )}
 
-        {/* ── Aviso de datos ── */}
-        <View style={styles.avisoCard}>
-          <Text style={styles.avisoTexto}>
-            📡 Los datos se actualizan automáticamente cuando los agricultores suben nuevos escaneos. La información refleja reportes de los últimos 30 días.
+        {/* ── Aviso de datos ───────────────────────────────── */}
+        <XStack
+          mx="$lg"
+          bg="$bgGreen"
+          borderRadius="$lg"
+          p="$md"
+          borderWidth={1}
+          borderColor="$primaryLight"
+          gap="$sm"
+          alignItems="flex-start"
+        >
+          <Info size={20} color={COLORS.primary} style={{ marginTop: 2 }} />
+          <Text fontSize={14} color="$textSecondary" lineHeight={20} flex={1}>
+            Los datos se actualizan automáticamente cuando los agricultores suben nuevos escaneos. La información refleja reportes de los últimos 30 días.
           </Text>
-        </View>
+        </XStack>
 
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// ── Componente leyenda ────────────────────
-const LeyendaItem = ({
-  color,
-  label,
-}: {
-  color: string;
-  label: string;
-}) => (
-  <View style={styles.leyendaItem}>
-    <View style={[styles.leyendaPunto, { backgroundColor: color }]} />
-    <Text style={styles.leyendaLabel}>{label}</Text>
-  </View>
+// ── Componente leyenda ────────────────────────────────────────────────
+const LeyendaItem = ({ color, label }: { color: string; label: string }) => (
+  <XStack alignItems="center" gap={6}>
+    <YStack width={12} height={12} borderRadius={999} bg={color} />
+    <Text fontSize={12} color="$textSecondary">
+      {label}
+    </Text>
+  </XStack>
 );
 
-// ── Componente estadística ────────────────
-const StatBox = ({
-  valor,
-  label,
-  color,
-}: {
-  valor: string;
-  label: string;
-  color: string;
-}) => (
-  <View style={[styles.statBox, { borderTopColor: color }]}>
-    <Text style={[styles.statValor, { color }]}>{valor}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
+// ── Componente estadística ────────────────────────────────────────────
+const StatBox = ({ valor, label, color }: { valor: string; label: string; color: string }) => (
+  <YStack
+    width={(width - 32 * 2 - 8) / 2}
+    bg="$bgCard"
+    borderRadius="$lg"
+    p="$md"
+    borderTopWidth={4}
+    borderWidth={1}
+    borderColor="$border"
+    gap={4}
+  >
+    <Text fontSize={28} fontWeight="800" color={color}>
+      {valor}
+    </Text>
+    <Text fontSize={14} color="$textMuted">
+      {label}
+    </Text>
+  </YStack>
 );
 
-// ── Componente zona de alerta ─────────────
-const ZonaCard = ({ zona }: { zona: any }) => {
+// ── Componente zona de alerta ─────────────────────────────────────────
+const ZonaCard = ({ zona }: { zona: typeof ZONAS_ALERTA[0] }) => {
   const esCritico = zona.nivel === 'critico';
-  const color     = esCritico ? COLORS.danger : COLORS.warning;
+  const color      = esCritico ? COLORS.danger : COLORS.warning;
   const colorFondo = esCritico ? COLORS.dangerLight : COLORS.warningLight;
+  const IconoNivel = esCritico ? AlertCircle : AlertTriangle;
 
   return (
-    <View style={[styles.zonaCard, { borderLeftColor: color }]}>
-      <View style={styles.zonaHeader}>
-        <View style={[styles.zonaNivelBadge, { backgroundColor: colorFondo }]}>
-          <Text style={[styles.zonaNivelText, { color }]}>
-            {esCritico ? '🔴 CRÍTICO' : '🟡 RIESGO'}
+    <YStack
+      bg="$bgCard"
+      borderRadius="$lg"
+      p="$md"
+      borderLeftWidth={5}
+      borderWidth={1}
+      borderColor="$border"
+      gap="$xs"
+      borderLeftColor={color}
+    >
+      <XStack justifyContent="space-between" alignItems="center">
+        <XStack
+          px="$sm"
+          py={4}
+          borderRadius="$full"
+          bg={colorFondo}
+          alignItems="center"
+          gap="$xs"
+        >
+          <IconoNivel size={12} color={color} />
+          <Text fontSize={12} fontWeight="700" color={color}>
+            {esCritico ? 'CRÍTICO' : 'RIESGO'}
           </Text>
-        </View>
-        <Text style={styles.zonaDetecciones}>
+        </XStack>
+        <Text fontSize={12} color="$textMuted">
           {zona.detecciones} escaneos
         </Text>
-      </View>
-      <Text style={styles.zonaNombre}>{zona.nombre}</Text>
-      <Text style={styles.zonaCultivo}>{zona.cultivo}</Text>
-      <Text style={[styles.zonaEnfermedad, { color }]}>
+      </XStack>
+
+      <Text fontSize={16} fontWeight="700" color="$textPrimary">
+        {zona.nombre}
+      </Text>
+
+      <XStack alignItems="center" gap="$xs">
+        {ICONO_CULTIVO[zona.cultivo]}
+        <Text fontSize={14} color="$textSecondary">
+          {zona.cultivo}
+        </Text>
+      </XStack>
+
+      <Text fontSize={14} fontWeight="600" color={color}>
         {zona.enfermedad}
       </Text>
-    </View>
+    </YStack>
   );
 };
 
 export default MapaScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: COLORS.bgPrimary,
-  },
-  scroll: {
-    paddingBottom: SPACING.xxl,
-    gap:           SPACING.md,
-  },
-
-  // ── Header
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.xl,
-    gap:               SPACING.xs,
-  },
-  titulo: {
-    fontSize:   FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color:      COLORS.textPrimary,
-  },
-  subtitulo: {
-    fontSize: FONT_SIZE.md,
-    color:    COLORS.textSecondary,
-  },
-
-  // ── Selector vista
-  selectorVista: {
-    flexDirection:     'row',
-    marginHorizontal:  SPACING.lg,
-    backgroundColor:   COLORS.bgCard,
-    borderRadius:      RADIUS.lg,
-    padding:           4,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
-  },
-  vistaBtn: {
-    flex:           1,
-    paddingVertical: SPACING.sm,
-    alignItems:     'center',
-    borderRadius:   RADIUS.md,
-  },
-  vistaBtnActivo: {
-    backgroundColor: COLORS.primary,
-  },
-  vistaBtnText: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color:      COLORS.textSecondary,
-  },
-  vistaBtnTextActivo: {
-    color: COLORS.white,
-  },
-
-  // ── Mapa placeholder
-  mapaContainer: {
-    marginHorizontal: SPACING.lg,
-    gap:              SPACING.md,
-  },
-  mapaPlaceholder: {
-    height:          280,
-    backgroundColor: COLORS.bgGreen,
-    borderRadius:    RADIUS.xl,
-    alignItems:      'center',
-    justifyContent:  'center',
-    borderWidth:     2,
-    borderColor:     COLORS.primaryLight,
-    borderStyle:     'dashed',
-    gap:             SPACING.sm,
-    padding:         SPACING.lg,
-  },
-  mapaEmoji: {
-    fontSize: 56,
-  },
-  mapaTitulo: {
-    fontSize:   FONT_SIZE.xl,
-    fontWeight: FONT_WEIGHT.bold,
-    color:      COLORS.primary,
-  },
-  mapaSubtitulo: {
-    fontSize: FONT_SIZE.md,
-    color:    COLORS.textSecondary,
-  },
-  mapaInfo: {
-    fontSize:   FONT_SIZE.sm,
-    color:      COLORS.textMuted,
-    textAlign:  'center',
-    lineHeight: 20,
-  },
-
-  // ── Leyenda
-  leyenda: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.md,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    gap:             SPACING.sm,
-  },
-  leyendaTitulo: {
-    fontSize:   FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.bold,
-    color:      COLORS.textSecondary,
-  },
-  leyendaItems: {
-    flexDirection: 'row',
-    gap:           SPACING.md,
-  },
-  leyendaItem: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           6,
-  },
-  leyendaPunto: {
-    width:        12,
-    height:       12,
-    borderRadius: RADIUS.full,
-  },
-  leyendaLabel: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.textSecondary,
-  },
-
-  // ── Sección título
-  seccionTitulo: {
-    paddingHorizontal: SPACING.lg,
-    fontSize:          FONT_SIZE.lg,
-    fontWeight:        FONT_WEIGHT.bold,
-    color:             COLORS.textPrimary,
-  },
-
-  // ── Stats grid
-  statsGrid: {
-    flexDirection:     'row',
-    flexWrap:          'wrap',
-    paddingHorizontal: SPACING.lg,
-    gap:               SPACING.sm,
-  },
-  statBox: {
-    width:           (width - SPACING.lg * 2 - SPACING.sm) / 2,
-    backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.md,
-    borderTopWidth:  4,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    gap:             4,
-  },
-  statValor: {
-    fontSize:   FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-  },
-  statLabel: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textMuted,
-  },
-
-  // ── Detecciones hoy
-  detectcionesHoy: {
-    flexDirection:     'row',
-    marginHorizontal:  SPACING.lg,
-    backgroundColor:   COLORS.bgCard,
-    borderRadius:      RADIUS.lg,
-    padding:           SPACING.lg,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
-  },
-  deteccionItem: {
-    flex:       1,
-    alignItems: 'center',
-    gap:        4,
-  },
-  deteccionDivider: {
-    width:           1,
-    backgroundColor: COLORS.border,
-    marginVertical:  SPACING.xs,
-  },
-  deteccionNumero: {
-    fontSize:   FONT_SIZE.xxxl,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color:      COLORS.primary,
-  },
-  deteccionLabel: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textMuted,
-  },
-
-  // ── Zonas
-  zonasContainer: {
-    paddingHorizontal: SPACING.lg,
-    gap:               SPACING.md,
-  },
-  zonaCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.md,
-    borderLeftWidth: 5,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    gap:             SPACING.xs,
-  },
-  zonaHeader: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-  },
-  zonaNivelBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical:   4,
-    borderRadius:      RADIUS.full,
-  },
-  zonaNivelText: {
-    fontSize:   FONT_SIZE.xs,
-    fontWeight: FONT_WEIGHT.bold,
-  },
-  zonaDetecciones: {
-    fontSize: FONT_SIZE.xs,
-    color:    COLORS.textMuted,
-  },
-  zonaNombre: {
-    fontSize:   FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-    color:      COLORS.textPrimary,
-  },
-  zonaCultivo: {
-    fontSize: FONT_SIZE.sm,
-    color:    COLORS.textSecondary,
-  },
-  zonaEnfermedad: {
-    fontSize:   FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-
-  // ── Aviso
-  avisoCard: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor:  COLORS.bgGreen,
-    borderRadius:     RADIUS.lg,
-    padding:          SPACING.md,
-    borderWidth:      1,
-    borderColor:      COLORS.primaryLight,
-  },
-  avisoTexto: {
-    fontSize:   FONT_SIZE.sm,
-    color:      COLORS.textSecondary,
-    lineHeight: 20,
-  },
-});

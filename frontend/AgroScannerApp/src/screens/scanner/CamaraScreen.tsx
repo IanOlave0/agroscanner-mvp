@@ -46,9 +46,10 @@ const CamaraScreen = ({ navigation, route }: Props) => {
     setAnalizando(false);
 
     navigation.navigate('Resultado', {
-      resultado:  resultadoSimulado,
-      imagenUri:  'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/640px-Hapus_Mango.jpg',
+      resultado:     resultadoSimulado,
+      imagenUri:     'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/640px-Hapus_Mango.jpg',
       cultivoId,
+      cultivoNombre,
     });
   };
 

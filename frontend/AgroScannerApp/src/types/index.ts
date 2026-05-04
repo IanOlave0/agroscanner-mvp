@@ -117,9 +117,9 @@ export type RootStackParams = {
   // Scanner flow
   SeleccionCultivo: undefined;
   Camara:    { cultivoId: number; cultivoNombre: string };
-  Resultado: { resultado: ResultadoIA; imagenUri: string; cultivoId: number };
-  ResultadoDecision: { resultado: ResultadoIA; imagenUri: string; cultivoId: number };
-  PinPlacement: { resultado: ResultadoIA; imagenUri: string; cultivoId: number };
+  Resultado: { resultado: ResultadoIA; imagenUri: string; cultivoId: number; cultivoNombre: string };
+  ResultadoDecision: { resultado: ResultadoIA; imagenUri: string; cultivoId: number; cultivoNombre: string };
+  PinPlacement: { resultado: ResultadoIA; imagenUri: string; cultivoId: number; cultivoNombre: string };
 
   // Parcelas flow
   ParcelaGestion: undefined;

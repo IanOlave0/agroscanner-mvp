@@ -52,7 +52,7 @@ interface PinPosition {
 }
 
 export default function PinPlacementScreen({ navigation, route }: Props) {
-  const { resultado, imagenUri, cultivoId } = route.params;
+  const { resultado, imagenUri, cultivoId, cultivoNombre } = route.params;
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [parcelaSeleccionada, setParcelaSeleccionada] = useState<Parcela | null>(null);
   const [pin, setPin] = useState<PinPosition | null>(null);

@@ -141,9 +141,10 @@ const RegistroScreen = ({ navigation }: Props) => {
               onChangeText={setPassword}
               error={errores.password}
               secureTextEntry={!verPwd}
+              autoCapitalize="none"
               rightElement={
                 <TouchableOpacity
-                  style={{ position: 'absolute', right: 16, top: '25%' }}
+                  style={{ position: 'absolute', right: 36, top: 15 }}
                   onPress={() => setVerPwd(v => !v)}
                   activeOpacity={0.7}
                 >
@@ -163,6 +164,7 @@ const RegistroScreen = ({ navigation }: Props) => {
               onChangeText={setConfirmPwd}
               error={errores.confirmPwd}
               secureTextEntry={!verPwd}
+              autoCapitalize="none"
             />
 
           </YStack>
@@ -258,13 +260,12 @@ const Campo = ({
         autoCapitalize={autoCapitalize ?? 'words'}
         borderWidth={1.5}
         borderRadius="$lg"
-        py="$md"
         px="$md"
-        pr={rightElement ? '$xxl' : '$md'}
+        pr={rightElement ? 80 : '$md'}
         fontSize={16}
         color="$textPrimary"
         bg="$bgCard"
-        style={{ ...SHADOW.sm, borderColor: error ? COLORS.danger : COLORS.border }}
+        style={{ ...SHADOW.sm, borderColor: error ? COLORS.danger : COLORS.border, height: 50 }}
       />
       {rightElement}
     </YStack>

@@ -1,33 +1,25 @@
 /**
- * Pantalla de Canvas para Dibujo de Parcelas
+ * @file src/screens/parcelas/ParcelaCanvasScreen.tsx
+ * @description Pantalla de dibujo de parcelas en canvas interactivo.
+ * Permite al agricultor trazar un polígono tocando el canvas,
+ * calcular el área automáticamente y guardar la parcela en SQLite.
  *
- * Permite al agricultor:
- * - Tocar la pantalla para agregar vértices del polígono
- * - Ver el polígono en tiempo real mientras dibuja
- * - Ver el área calculada (con turf.js)
- * - Guardar la parcela en la BD
- * - Editar parcela existente (precarga vértices)
+ * Migración UI/UX:
+ * - Layout externo migrado a Tamagui (YStack, XStack, Text).
+ * - Header alineado al patrón de ParcelaGestionScreen (título centrado verde).
+ * - Botones de acción con iconos vectoriales de Lucide (Undo2, Trash2, Save).
+ * - Sección de información con acento de color verde.
+ * - Canvas SVG interno se mantiene funcionalmente igual.
  *
- * FLUJO:
- * 1. Usuario toca canvas → agrega vértice
- * 2. Mínimo 3 vértices → habilita botón "Guardar"
- * 3. Calcula área con turf.js
- * 4. Guarda en BD con geometría JSON
- *
- * FIX APLICADO:
- * - Usando react-native-svg para dibujar líneas y vértices
- * - Pressable para detección de taps
- * - Líneas conectan directamente los vértices (x1,y1 → x2,y2)
+ * @author AgroScanner Team
  */
+
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Alert,
   TextInput,
+  TouchableOpacity,
+  Alert,
   ScrollView,
   Pressable,
   StatusBar,
@@ -35,12 +27,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import Svg, { Line, Circle, Polygon as SvgPolygon } from 'react-native-svg';
-import { RootStackParams, Parcela, Usuario } from '../../types';
-import { COLORS, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../../constants';
-import { insertParcela, getParcelaById, getUsuarioActivo, updateParcelaGeometria } from '../../database/queries';
-import { calcularAreaParcela, formatearArea, parseGeometria, serializeGeometria } from '../../utils/geometria';
 import { useFocusEffect } from '@react-navigation/native';
+import { YStack, XStack, Text } from 'tamagui';
+import { Svg, Line, Circle } from 'react-native-svg';
+import {
+  ArrowLeft, Undo2, Trash2, Save, Pencil, MapPin,
+} from 'lucide-react-native';
+
+import { COLORS, SHADOW } from '../../constants';
+import { RootStackParams, Parcela, Usuario } from '../../types';
+import {
+  insertParcela, getParcelaById, getUsuarioActivo, updateParcelaGeometria,
+} from '../../database/queries';
+import {
+  calcularAreaParcela, formatearArea, parseGeometria, serializeGeometria,
+} from '../../utils/geometria';
 import { v4 as uuidv4 } from 'uuid';
 
 type ParcelaCanvasNavigationProp = NativeStackNavigationProp<RootStackParams, 'ParcelaCanvas'>;
@@ -51,13 +52,11 @@ type Props = {
   route: ParcelaCanvasRouteProp;
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Canvas ocupa 90% del ancho de pantalla, mínimo 300px
-const CANVAS_SIZE = Math.max(300, Math.min(SCREEN_WIDTH - 32, 400));
+// Tamaño fijo del canvas para mantener proporción del dibujo
+const CANVAS_SIZE = 320;
 
 /**
- * Punto (vértice) en el canvas
+ * Representa un vértice en el canvas con coordenadas de pantalla y GPS.
  */
 interface Vertex {
   x: number;
@@ -74,7 +73,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   const [isEditing, setIsEditing] = useState(false);
 
   /**
-   * Si es edición, carga la parcela existente
+   * Si es edición, precarga los datos de la parcela existente.
    */
   useFocusEffect(
     React.useCallback(() => {
@@ -86,7 +85,8 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   );
 
   /**
-   * Carga datos de parcela existente para edición
+   * Carga los datos de una parcela existente para edición.
+   * Normaliza las coordenadas GPS al espacio del canvas.
    */
   const cargarParcela = async (id: string) => {
     try {
@@ -99,9 +99,9 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
       setNombre(parcela.alias);
       const parsed = parseGeometria(parcela.geometria);
-      
-      // Normalizar coordenadas al centro del canvas
-      let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+
+      let minLat = Infinity, maxLat = -Infinity;
+      let minLng = Infinity, maxLng = -Infinity;
       parsed.forEach(coord => {
         if (coord.lat < minLat) minLat = coord.lat;
         if (coord.lat > maxLat) maxLat = coord.lat;
@@ -130,18 +130,17 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Maneja el toque en el canvas para agregar vértice
-   * Usa Pressable onPress en lugar de onTouchEnd (compatible con ScrollView)
+   * Agrega un vértice al tocar el canvas.
+   * Calcula el área automáticamente cuando hay al menos 3 vértices.
    */
   const handleCanvasTap = (event: any) => {
     const { locationX, locationY } = event.nativeEvent;
-    
+
     if (isEditing) return;
 
     const centerX = CANVAS_SIZE / 2;
     const centerY = CANVAS_SIZE / 2;
     const scale = 0.00005;
-
     const baseLat = 19.1460;
     const baseLng = -104.3260;
 
@@ -166,20 +165,26 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Dibuja el polígono usando SVG (líneas directas entre vértices)
+   * Renderiza el polígono sobre el canvas usando SVG.
+   * MANTENIDO FUNCIONALMENTE IGUAL.
    */
   const renderPolygon = () => {
     return (
       <View
-        style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
+        style={{
+          width: CANVAS_SIZE,
+          height: CANVAS_SIZE,
+          backgroundColor: COLORS.white,
+          borderRadius: 16,
+          borderWidth: 2,
+          borderColor: COLORS.primary + '40',
+          overflow: 'hidden',
+        }}
       >
-        {/* Svg en la capa inferior - no bloquea touches */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Svg
-            width={CANVAS_SIZE}
-            height={CANVAS_SIZE}
-          >
-            {/* Línea de cierre (del último al primero) si hay 3+ vértices */}
+        {/* Capa SVG (no intercepta touches) */}
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} pointerEvents="none">
+          <Svg width={CANVAS_SIZE} height={CANVAS_SIZE}>
+            {/* Línea de cierre */}
             {vertices.length >= 3 && (
               <Line
                 x1={vertices[vertices.length - 1].x}
@@ -192,7 +197,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
               />
             )}
 
-            {/* Líneas entre vértices consecutivos */}
+            {/* Líneas entre vértices */}
             {vertices.map((vertex, i) => {
               if (i === 0) return null;
               const prev = vertices[i - 1];
@@ -226,14 +231,25 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
         {/* Hint cuando no hay vértices */}
         {vertices.length === 0 && (
-          <Text style={styles.canvasHint}>
+          <Text
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: [{ translateX: -100 }, { translateY: -12 }],
+              color: COLORS.textMuted,
+              fontSize: 16,
+              textAlign: 'center',
+              width: 200,
+            }}
+          >
             Toca aquí para agregar el primer vértice
           </Text>
         )}
 
-        {/* Pressable en la capa superior - captura todos los taps */}
+        {/* Capa táctil */}
         <Pressable
-          style={StyleSheet.absoluteFill}
+          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
           onPress={handleCanvasTap}
         />
       </View>
@@ -241,7 +257,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Guarda la parcela en la BD
+   * Guarda la parcela (nueva o edición) en SQLite.
    */
   const handleGuardar = async () => {
     if (vertices.length < 3) {
@@ -283,11 +299,11 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Elimina el último vértice
+   * Elimina el último vértice agregado.
    */
   const handleDeshacer = () => {
     if (vertices.length === 0) return;
-    
+
     const newVertices = vertices.slice(0, -1);
     setVertices(newVertices);
 
@@ -300,7 +316,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
   };
 
   /**
-   * Limpia todos los vértices
+   * Limpia todos los vértices del canvas.
    */
   const handleLimpiar = () => {
     Alert.alert(
@@ -308,247 +324,193 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
       '¿Estás seguro? Se eliminarán todos los vértices.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Limpiar', 
+        {
+          text: 'Limpiar',
           style: 'destructive',
           onPress: () => {
             setVertices([]);
             setArea(null);
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {isEditing ? 'Editar Parcela' : 'Dibujar Parcela'}
-        </Text>
-      </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Nombre */}
-        <View style={styles.nameSection}>
-          <Text style={styles.label}>Nombre de la parcela</Text>
-          <TextInput
-            style={styles.input}
-            value={nombre}
-            onChangeText={setNombre}
-            placeholder="Ej: Parcela Norte, Terreno A, ..."
-            placeholderTextColor={COLORS.textMuted}
-          />
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack gap="$lg" pb="$xxl">
 
-        {/* Canvas */}
-        <View style={styles.canvasSection}>
-          <Text style={styles.label}>
-            {isEditing ? 'Vista de la parcela' : 'Toca el mapa para agregar vértices'}
-          </Text>
-          {renderPolygon()}
-        </View>
-
-        {/* Info */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Vértices:</Text>
-            <Text style={styles.infoValue}>{vertices.length}</Text>
-          </View>
-          
-          {area !== null && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Área:</Text>
-              <Text style={[styles.infoValue, styles.areaValue]}>
-                {formatearArea(area)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Botones */}
-        <View style={styles.buttonsSection}>
-          {!isEditing && (
-            <>
-              <TouchableOpacity 
-                style={[styles.button, styles.secondaryButton]}
-                onPress={handleDeshacer}
-                disabled={vertices.length === 0}
-              >
-                <Text style={styles.secondaryButtonText}>Deshacer último</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.button, styles.dangerButton]}
-                onPress={handleLimpiar}
-                disabled={vertices.length === 0}
-              >
-                <Text style={styles.dangerButtonText}>Limpiar todo</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.primaryButton,
-              (vertices.length < 3 || !nombre.trim()) && styles.disabledButton,
-            ]}
-            onPress={handleGuardar}
-            disabled={vertices.length < 3 || !nombre.trim()}
+          {/* ── Header ───────────────────────────────────────────── */}
+          <YStack
+            bg="$white"
+            borderBottomWidth={1}
+            borderColor="$border"
+            px="$lg"
+            py="$lg"
+            gap="$md"
           >
-            <Text style={styles.primaryButtonText}>
-              {isEditing ? 'Actualizar Parcela' : 'Guardar Parcela'}
+            <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.85}>
+              <XStack alignItems="center" gap="$xs">
+                <ArrowLeft size={20} color={COLORS.primary} />
+                <Text fontSize={14} fontWeight="600" color="$primary">
+                  Volver
+                </Text>
+              </XStack>
+            </TouchableOpacity>
+            <Text fontSize={24} fontWeight="800" color="$primary" textAlign="center">
+              {isEditing ? 'Editar Parcela' : 'Dibujar Parcela'}
             </Text>
-          </TouchableOpacity>
-        </View>
+          </YStack>
+
+          {/* ── Nombre de la parcela ─────────────────────────────── */}
+          <YStack px="$lg" gap="$sm">
+            <XStack alignItems="center" gap="$xs">
+              <Pencil size={18} color={COLORS.primary} />
+              <Text fontSize={16} fontWeight="700" color="$textPrimary">
+                Nombre de la parcela
+              </Text>
+            </XStack>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: 12,
+                padding: 16,
+                fontSize: 16,
+                color: COLORS.textPrimary,
+                backgroundColor: COLORS.bgPrimary,
+              }}
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Ej: Parcela Norte, Terreno A, ..."
+              placeholderTextColor={COLORS.textMuted}
+            />
+          </YStack>
+
+          {/* ── Canvas ───────────────────────────────────────────── */}
+          <YStack px="$lg" gap="$sm">
+            <XStack alignItems="center" gap="$xs">
+              <MapPin size={18} color={COLORS.primary} />
+              <Text fontSize={16} fontWeight="700" color="$textPrimary">
+                {isEditing ? 'Vista de la parcela' : 'Toca el mapa para agregar vértices'}
+              </Text>
+            </XStack>
+            <YStack alignItems="center">
+              {renderPolygon()}
+            </YStack>
+          </YStack>
+
+          {/* ── Información con acento de color ──────────────────── */}
+          <YStack
+            mx="$lg"
+            bg="$white"
+            borderRadius="$lg"
+            p="$md"
+            style={SHADOW.md}
+            gap="$sm"
+          >
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text fontSize={16} color="$textSecondary">
+                Vértices:
+              </Text>
+              <Text fontSize={18} fontWeight="800" color="$primary">
+                {vertices.length}
+              </Text>
+            </XStack>
+
+            {area !== null && (
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text fontSize={16} color="$textSecondary">
+                  Área:
+                </Text>
+                <Text fontSize={20} fontWeight="800" color="$primary">
+                  {formatearArea(area)}
+                </Text>
+              </XStack>
+            )}
+          </YStack>
+
+          {/* ── Botones de acción ────────────────────────────────── */}
+          <YStack px="$lg" gap="$md">
+            {!isEditing && (
+              <>
+                <TouchableOpacity
+                  onPress={handleDeshacer}
+                  disabled={vertices.length === 0}
+                  activeOpacity={0.85}
+                >
+                  <YStack
+                    bg="$white"
+                    borderWidth={1}
+                    borderColor="$border"
+                    py="$md"
+                    borderRadius="$lg"
+                    alignItems="center"
+                    flexDirection="row"
+                    justifyContent="center"
+                    gap="$sm"
+                    style={vertices.length === 0 ? { opacity: 0.4 } : undefined}
+                  >
+                    <Undo2 size={20} color={COLORS.textPrimary} />
+                    <Text fontSize={16} fontWeight="600" color="$textPrimary">
+                      Deshacer último
+                    </Text>
+                  </YStack>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleLimpiar}
+                  disabled={vertices.length === 0}
+                  activeOpacity={0.85}
+                >
+                  <YStack
+                    bg="$dangerLight"
+                    borderWidth={1}
+                    borderColor="$dangerLight"
+                    py="$md"
+                    borderRadius="$lg"
+                    alignItems="center"
+                    flexDirection="row"
+                    justifyContent="center"
+                    gap="$sm"
+                    style={vertices.length === 0 ? { opacity: 0.4 } : undefined}
+                  >
+                    <Trash2 size={20} color={COLORS.danger} />
+                    <Text fontSize={16} fontWeight="600" color="$danger">
+                      Limpiar todo
+                    </Text>
+                  </YStack>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity
+              onPress={handleGuardar}
+              disabled={vertices.length < 3 || !nombre.trim()}
+              activeOpacity={0.85}
+            >
+              <YStack
+                bg={(vertices.length < 3 || !nombre.trim()) ? COLORS.textMuted : COLORS.primary}
+                py="$md"
+                borderRadius="$lg"
+                alignItems="center"
+                flexDirection="row"
+                justifyContent="center"
+                gap="$sm"
+              >
+                <Save size={20} color={COLORS.white} />
+                <Text fontSize={16} fontWeight="700" color="$white">
+                  {isEditing ? 'Actualizar Parcela' : 'Guardar Parcela'}
+                </Text>
+              </YStack>
+            </TouchableOpacity>
+          </YStack>
+
+        </YStack>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgPrimary,
-  },
-  header: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  backButton: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
-  },
-  title: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: SPACING.xxl,
-  },
-  nameSection: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.white,
-    marginTop: SPACING.md,
-  },
-  label: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.bgPrimary,
-  },
-  canvasSection: {
-    padding: SPACING.lg,
-    alignItems: 'center',
-  },
-  canvas: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary + '40',
-    overflow: 'hidden',
-  },
-  canvasPressable: {
-    width: '100%',
-    height: '100%',
-  },
-  canvasHint: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -100 }, { translateY: -12 }],
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.md,
-    textAlign: 'center',
-    width: 200,
-  },
-  infoSection: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.xs,
-  },
-  infoLabel: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  infoValue: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
-  },
-  areaValue: {
-    color: COLORS.primary,
-    fontSize: FONT_SIZE.lg,
-  },
-  buttonsSection: {
-    padding: SPACING.lg,
-    gap: SPACING.md,
-  },
-  button: {
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-  },
-  primaryButtonText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  secondaryButton: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  secondaryButtonText: {
-    color: COLORS.textPrimary,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  dangerButton: {
-    backgroundColor: COLORS.danger + '15',
-  },
-  dangerButtonText: {
-    color: COLORS.danger,
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  disabledButton: {
-    backgroundColor: COLORS.textMuted,
-  },
-});

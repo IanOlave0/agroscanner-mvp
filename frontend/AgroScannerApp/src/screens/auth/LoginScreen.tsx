@@ -125,12 +125,11 @@ const LoginScreen = ({ navigation }: Props) => {
                 onChangeText={setCorreo}
                 borderWidth={1.5}
                 borderRadius="$lg"
-                py="$md"
                 px="$md"
                 fontSize={16}
                 color="$textPrimary"
                 bg="$bgCard"
-                style={{ ...SHADOW.sm, borderColor: errCorreo ? COLORS.danger : COLORS.border }}
+                style={{ ...SHADOW.sm, borderColor: errCorreo ? COLORS.danger : COLORS.border, height: 50 }}
               />
               {errCorreo ? (
                 <Text fontSize={14} color="$danger">
@@ -148,20 +147,20 @@ const LoginScreen = ({ navigation }: Props) => {
                 <Input
                   placeholder="••••••••••"
                   secureTextEntry={!verPwd}
+                  autoCapitalize="none"
                   value={password}
                   onChangeText={setPassword}
                   borderWidth={1.5}
                   borderRadius="$lg"
-                  py="$md"
                   px="$md"
-                  pr="$xxl"
+                  pr={80}
                   fontSize={16}
                   color="$textPrimary"
                   bg="$bgCard"
-                  style={{ ...SHADOW.sm, borderColor: errPwd ? COLORS.danger : COLORS.border }}
+                  style={{ ...SHADOW.sm, borderColor: errPwd ? COLORS.danger : COLORS.border, height: 50 }}
                 />
                 <TouchableOpacity
-                  style={{ position: 'absolute', right: 16, top: '25%' }}
+                  style={{ position: 'absolute', right: 36, top: 15 }}
                   onPress={() => setVerPwd(v => !v)}
                   activeOpacity={0.7}
                 >

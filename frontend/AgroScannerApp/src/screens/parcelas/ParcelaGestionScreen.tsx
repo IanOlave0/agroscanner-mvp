@@ -55,8 +55,14 @@ const ParcelaCard = ({
       gap="$sm"
     >
       {/* Header de la card */}
-      <XStack justifyContent="space-between" alignItems="center">
-        <Text fontSize={18} fontWeight="700" color="$textPrimary">
+      <YStack gap="$xs">
+        <Text
+          fontSize={18}
+          fontWeight="700"
+          color="$textPrimary"
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
           {parcela.alias}
         </Text>
         <XStack alignItems="center" gap="$xs">
@@ -65,7 +71,7 @@ const ParcelaCard = ({
             {formatearArea(parcela.metros_cuadrados)}
           </Text>
         </XStack>
-      </XStack>
+      </YStack>
 
       {/* Info de la parcela */}
       <YStack gap="$xs">

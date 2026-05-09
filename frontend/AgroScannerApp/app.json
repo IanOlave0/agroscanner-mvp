@@ -4,10 +4,10 @@
     "slug": "agroscanner-mvp",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "icon": "../AgroScannerApp/assets/jaguar.png",
+    "icon": "../AgroScannerApp/assets/logo/jaguar.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "../AgroScannerApp/assets/jaguar.png",
+      "image": "../AgroScannerApp/assets/logo/jaguar.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },

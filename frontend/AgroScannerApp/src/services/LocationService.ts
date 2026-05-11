@@ -1,29 +1,23 @@
-import Geolocation from 'react-native-geolocation-service';
-import { PermissionsAndroid, Platform } from 'react-native';
+import * as Location from 'expo-location';
 
-export const obtenerUbicacionActual = async (): Promise<{lat: number, lng: number} | null> => {
-  // 1. Solicitar permiso (Solo Android)
-  if (Platform.OS === 'android') {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-    if (granted !== PermissionsAndroid.RESULTS.GRANTED) return null;
+export const obtenerUbicacionActual = async (): Promise<{ lat: number; lng: number } | null> => {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+
+  if (status !== Location.PermissionStatus.GRANTED) {
+    return null;
   }
 
-  // 2. Obtener posición
-  return new Promise((resolve) => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.log(error.code, error.message);
-        resolve(null);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
-  });
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+
+    return {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+    };
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
 };

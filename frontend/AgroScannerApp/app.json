@@ -4,15 +4,34 @@
     "slug": "agroscanner-mvp",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "icon": "../AgroScannerApp/assets/jaguar.png",
+    "icon": "./assets/jaguar-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "../AgroScannerApp/assets/jaguar.png",
+      "image": "./assets/logo/jaguar.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AgroScanner necesita acceso a la camara para fotografiar hojas de cultivos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AgroScanner necesita acceso a tu galeria para seleccionar fotos de cultivos."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "AgroScanner necesita acceso a tus fotos para guardar capturas de cultivos.",
+          "savePhotosPermission": "AgroScanner necesita permiso para guardar las fotos capturadas en tu galeria."
+        }
+      ]
     ]
   }
 }

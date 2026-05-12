@@ -16,6 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 import tamaguiConfig from './tamagui.config';
 import AppNavigation from './src/navigation';
+import { AuthProvider } from './src/context/AuthContext';
 import { initDatabase, seedDatabase } from './src/database';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from './src/constants';
 
@@ -64,7 +65,9 @@ const App = () => {
     <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
       <SafeAreaProvider>
         <NavigationContainer>
-          <AppNavigation />
+          <AuthProvider>
+            <AppNavigation />
+          </AuthProvider>
         </NavigationContainer>
       </SafeAreaProvider>
     </TamaguiProvider>

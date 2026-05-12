@@ -1,13 +1,13 @@
 /**
  * @file src/screens/historial/HistorialScreen.tsx
  * @description Pantalla de historial de detecciones.
- * Muestra el listado de escaneos previos con filtro por cultivo.
+ * Muestra el listado de escaneos previos con filtro por cultivo,
+ * consultando la base de datos real via getDeteccionesByUsuario.
  *
- * Migración UI/UX:
+ * Migracion UI/UX:
  * - Layout reemplazado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
  * - Iconos de emojis migrados a vectoriales de Lucide React Native.
  * - Iconos de cultivos reemplazados por componentes SVG vectoriales.
- * - Tipografía utiliza tokens de color de Tamagui; fontSize usa valores numéricos.
  *
  * @author AgroScanner Team
  */
@@ -17,57 +17,47 @@ import {
   ScrollView, StatusBar, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { YStack, XStack, Text } from 'tamagui';
 import {
-  CloudOff, Sprout, CheckCircle2, AlertTriangle,
-  ChevronRight,
+  CloudOff, Sprout, CheckCircle2, AlertTriangle, UserPlus,
 } from 'lucide-react-native';
 
 import { COLORS } from '../../constants';
+import { useAuth } from '../../context/AuthContext';
+import { getDeteccionesByUsuario } from '../../database/queries';
+import { Deteccion, RootStackParams } from '../../types';
 import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
 
-// ── Datos de ejemplo ───────────────────────────────────────────────
-const DETECCIONES_EJEMPLO = [
-  {
-    id: 1,
-    fecha: '2026-03-20 09:15',
-    cultivo: 'Limón Mexicano',
-    cultivoId: 1,
-    enfermedad: 'HLB (Dragón Amarillo)',
-    resultado_positivo: true,
-    confianza: 0.92,
-    sincronizado: true,
-  },
-  {
-    id: 2,
-    fecha: '2026-03-20 10:30',
-    cultivo: 'Papaya',
-    cultivoId: 2,
-    enfermedad: 'Araña Roja',
-    resultado_positivo: false,
-    confianza: 0.88,
-    sincronizado: false,
-  },
-  {
-    id: 3,
-    fecha: '2026-03-19 14:00',
-    cultivo: 'Plátano',
-    cultivoId: 3,
-    enfermedad: 'Sigatoka Negra',
-    resultado_positivo: true,
-    confianza: 0.76,
-    sincronizado: true,
-  },
-];
-
-const FILTROS = ['Todos', 'Limón', 'Papaya', 'Plátano'];
+const FILTROS = ['Todos', 'Limon', 'Papaya', 'Platano'];
+const FILTRO_MAPA: Record<string, number> = { Limon: 1, Papaya: 2, Platano: 3 };
 
 const HistorialScreen = () => {
+  const { usuarioId, estado } = useAuth();
+  const isGuest = estado === 'guest';
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
   const [filtroActivo, setFiltroActivo] = useState('Todos');
 
-  const deteccionesFiltradas = DETECCIONES_EJEMPLO.filter(d => {
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarDetecciones();
+    }, [usuarioId]),
+  );
+
+  const cargarDetecciones = async () => {
+    try {
+      const lista = await getDeteccionesByUsuario(usuarioId);
+      setDetecciones(lista);
+    } catch (error) {
+      console.error('[HistorialScreen] Error cargando detecciones:', error);
+    }
+  };
+
+  const deteccionesFiltradas = detecciones.filter(d => {
     if (filtroActivo === 'Todos') return true;
-    return d.cultivo.includes(filtroActivo);
+    return d.cultivo_id === FILTRO_MAPA[filtroActivo];
   });
 
   const getIconoCultivo = (id: number, size: number) => {
@@ -79,6 +69,8 @@ const HistorialScreen = () => {
     }
   };
 
+  const hayPendientes = detecciones.some(d => !d.sincronizado);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
@@ -86,7 +78,7 @@ const HistorialScreen = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack pb="$xxl">
 
-          {/* ── Header ───────────────────────────────────────────── */}
+          {/* Header */}
           <YStack px="$lg" pt="$xl" pb="$md" gap="$xs">
             <Text fontSize={28} fontWeight="800" color="$textPrimary">
               Historial
@@ -96,8 +88,40 @@ const HistorialScreen = () => {
             </Text>
           </YStack>
 
-          {/* ── Banner: sin sincronizar ──────────────────────────── */}
-          {DETECCIONES_EJEMPLO.some(d => !d.sincronizado) && (
+          {/* ── Banner: cuenta requerida (invitado) ──────────────── */}
+          {isGuest && (
+            <YStack mx="$lg" bg="$primaryBg" borderRadius="$lg" p="$md" gap="$sm" mb="$md" borderWidth={1} borderColor="$primaryLight">
+              <XStack alignItems="center" gap="$sm">
+                <UserPlus size={20} color={COLORS.primary} />
+                <Text fontSize={15} fontWeight="700" color="$primary">
+                  Guarda tus escaneos en la nube
+                </Text>
+              </XStack>
+              <Text fontSize={13} color="$textSecondary" lineHeight={18}>
+                Crea una cuenta para sincronizar tus detecciones entre dispositivos y acceder a mapas de calor de tus parcelas.
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Registro')}
+                activeOpacity={0.85}
+              >
+                <YStack
+                  alignSelf="flex-start"
+                  bg="$primary"
+                  borderRadius="$full"
+                  px="$lg"
+                  py="$sm"
+                  mt="$xs"
+                >
+                  <Text fontSize={14} fontWeight="700" color="$white">
+                    Crear cuenta
+                  </Text>
+                </YStack>
+              </TouchableOpacity>
+            </YStack>
+          )}
+
+          {/* Banner: sin sincronizar */}
+          {hayPendientes && (
             <XStack mx="$lg" alignItems="center" bg="#FFF9C4" borderRadius="$md" p="$md" gap="$md" mb="$md" borderWidth={1} borderColor="$warning">
               <CloudOff size={24} color={COLORS.warning} />
               <YStack flex={1}>
@@ -105,13 +129,13 @@ const HistorialScreen = () => {
                   Tienes escaneos sin sincronizar
                 </Text>
                 <Text fontSize={12} color="$textSecondary">
-                  Se subirán automáticamente cuando tengas internet
+                  Se subiran automaticamente cuando tengas internet
                 </Text>
               </YStack>
             </XStack>
           )}
 
-          {/* ── Filtros ──────────────────────────────────────────── */}
+          {/* Filtros */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <XStack px="$lg" gap="$sm" pb="$md">
               {FILTROS.map(filtro => (
@@ -141,16 +165,16 @@ const HistorialScreen = () => {
             </XStack>
           </ScrollView>
 
-          {/* ── Lista de detecciones ─────────────────────────────── */}
+          {/* Lista de detecciones */}
           <YStack px="$lg" gap="$md">
             {deteccionesFiltradas.length === 0 ? (
               <YStack alignItems="center" pt="$xxl" gap="$md">
                 <Sprout size={56} color={COLORS.primaryLight} />
                 <Text fontSize={22} fontWeight="700" color="$textSecondary">
-                  Sin escaneos aún
+                  Sin escaneos aun
                 </Text>
                 <Text fontSize={16} color="$textMuted" textAlign="center">
-                  Tus diagnósticos aparecerán aquí
+                  Tus diagnosticos apareceran aqui
                 </Text>
               </YStack>
             ) : (
@@ -170,33 +194,47 @@ const HistorialScreen = () => {
   );
 };
 
-// ── Subcomponente: Tarjeta de detección ────────────────────────────
+// ── Subcomponente: Tarjeta de deteccion ────────────────────────────
 const TarjetaDeteccion = ({
   deteccion,
   getIconoCultivo,
 }: {
-  deteccion: any;
+  deteccion: Deteccion;
   getIconoCultivo: (id: number, size: number) => React.ReactNode;
 }) => {
-  const confianzaPct = Math.round(deteccion.confianza * 100);
-  const esPositivo = deteccion.resultado_positivo;
+  const confianzaPct = Math.round(deteccion.nivel_confianza);
+  const esPositivo = !!deteccion.enfermedad_id;
   const colorResultado = esPositivo ? COLORS.danger : COLORS.success;
+
+  const formatFechaRelativa = (fechaStr: string) => {
+    const isoStr = fechaStr.includes('T') ? fechaStr : fechaStr.replace(' ', 'T') + 'Z';
+    const fecha = new Date(isoStr);
+    const ahora = new Date();
+    const diffMs = Math.max(0, ahora.getTime() - fecha.getTime());
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHoras = Math.floor(diffMins / 60);
+    const diffDias = Math.floor(diffHoras / 24);
+
+    if (diffMins < 1) return 'Ahora';
+    if (diffMins < 60) return `hace ${diffMins}m`;
+    if (diffHoras < 24) return `hace ${diffHoras}h`;
+    if (diffDias < 7) return `hace ${diffDias}d`;
+    return fecha.toLocaleDateString();
+  };
 
   return (
     <XStack bg="$bgCard" borderRadius="$lg" overflow="hidden" borderWidth={1} borderColor="$border" style={{ elevation: 2 }}>
-      {/* Franja de color izquierda */}
       <YStack width={5} bg={colorResultado} />
 
       <YStack flex={1} p="$md" gap="$sm">
-        {/* Top: icono + info + badge */}
         <XStack alignItems="center" gap="$sm">
-          {getIconoCultivo(deteccion.cultivoId, 32)}
+          {getIconoCultivo(deteccion.cultivo_id, 32)}
           <YStack flex={1}>
             <Text fontSize={16} fontWeight="700" color="$textPrimary">
-              {deteccion.cultivo}
+              {deteccion.nombre_cultivo || 'Cultivo'}
             </Text>
             <Text fontSize={12} color="$textMuted">
-              {deteccion.fecha}
+              {formatFechaRelativa(deteccion.fecha_creacion || '')}
             </Text>
           </YStack>
           <XStack alignItems="center" gap="$xs" px="$sm" py={4} borderRadius="$full" bg={colorResultado + '20'}>
@@ -211,11 +249,10 @@ const TarjetaDeteccion = ({
           </XStack>
         </XStack>
 
-        {/* Bottom: enfermedad + meta */}
         <YStack gap="$xs">
           {esPositivo && (
             <Text fontSize={14} fontWeight="600" color="$danger">
-              {deteccion.enfermedad}
+              {deteccion.nombre_enfermedad || 'Enfermedad detectada'}
             </Text>
           )}
           <XStack justifyContent="space-between" alignItems="center">

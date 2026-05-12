@@ -105,7 +105,9 @@ export async function updateUsuario(id, zonaAgricola, sincronizado = 0) {
 export async function getUsuarioActivo() {
   const db = getDatabase();
   try {
-    return await db.getFirstAsync("SELECT * FROM usuarios LIMIT 1");
+    return await db.getFirstAsync(
+      "SELECT * FROM usuarios WHERE token IS NOT NULL ORDER BY fecha_creacion DESC LIMIT 1",
+    );
   } catch (error) {
     console.error("[AgroScanner DB] Error getting usuario activo:", error);
     throw error;

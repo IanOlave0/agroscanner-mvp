@@ -21,17 +21,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { YStack, XStack, Text } from 'tamagui';
-import { Camera, ChevronRight } from 'lucide-react-native';
+import { Camera, ChevronRight, UserPlus } from 'lucide-react-native';
 
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
 import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
+import { useAuth } from '../../context/AuthContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'SeleccionCultivo'>;
 };
 
 const SeleccionCultivoScreen = ({ navigation }: Props) => {
+  const { estado } = useAuth();
+  const isGuest = estado === 'guest';
 
   const cultivos = [
     { id: 1, data: require('../../constants').CULTIVOS.limon },
@@ -80,6 +83,34 @@ const SeleccionCultivoScreen = ({ navigation }: Props) => {
               • La hoja debe ocupar la mayor parte de la pantalla
             </Text>
           </YStack>
+
+          {/* ── Banner: cuenta requerida (invitado) ──────────────── */}
+          {isGuest && (
+            <YStack bg="$primaryBg" borderRadius="$lg" p="$lg" gap="$sm" borderWidth={1} borderColor="$primaryLight">
+              <Text fontSize={14} color="$textSecondary" lineHeight={20}>
+                Modo invitado: tus escaneos se guardan solo en este dispositivo. Crea una cuenta para sincronizarlos y acceder a mapas de calor.
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Registro')}
+                activeOpacity={0.85}
+              >
+                <XStack
+                  alignSelf="flex-start"
+                  bg="$primary"
+                  borderRadius="$full"
+                  px="$lg"
+                  py="$sm"
+                  alignItems="center"
+                  gap="$sm"
+                >
+                  <UserPlus size={16} color={COLORS.white} />
+                  <Text fontSize={14} fontWeight="700" color="$white">
+                    Crear cuenta gratis
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            </YStack>
+          )}
 
           {/* ── Tarjetas de cultivos ─────────────────────────────── */}
           <Text fontSize={18} fontWeight="700" color="$textPrimary">

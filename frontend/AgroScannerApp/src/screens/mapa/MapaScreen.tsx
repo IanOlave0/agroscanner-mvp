@@ -1,401 +1,347 @@
 /**
  * @file src/screens/mapa/MapaScreen.tsx
- * @description Pantalla de mapa epidemiológico con vista de heatmap y lista de zonas.
- * Muestra estadísticas de la región y alertas activas.
- *
- * Migración UI/UX:
- * - Layout migrado de View/StyleSheet a stacks de Tamagui (YStack, XStack).
- * - Iconos de emojis migrados a vectoriales de Lucide React Native y SVGs custom.
+ * @description Pantalla de mapa de calor por parcela.
+ * Permite seleccionar una parcela y ver sus estadisticas de detecciones.
+ * El heatmap visual se integrara en la Fase 4 (Mapbox).
  *
  * @author AgroScanner Team
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  ScrollView, StatusBar, TouchableOpacity, Dimensions,
+  ScrollView, StatusBar, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { YStack, XStack, Text } from 'tamagui';
 import {
-  Map, List, BarChart3, AlertTriangle, AlertCircle, Info,
+  Map, Sprout, ChevronDown, ChevronRight,
+  AlertTriangle, CheckCircle2, MapPin, SearchX, Ruler,
 } from 'lucide-react-native';
 
-import { COLORS } from '../../constants';
-import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
-
-const { width } = Dimensions.get('window');
-
-// ── Datos de ejemplo del mapa ─────────────────────────────────────────
-// Cuando el backend esté listo, estos datos
-// vendrán de la API como coordenadas GPS reales
-// y se renderizarán con Google Maps SDK
-const STATS_MAPA = {
-  area_total_ha:    120,
-  zona_critica_pct: 15,
-  zona_riesgo_pct:  35,
-  zona_segura_pct:  50,
-  total_detecciones: 28,
-  activas_hoy:       4,
-};
-
-// Zonas con brotes activos simuladas
-const ZONAS_ALERTA = [
-  {
-    id:          1,
-    nombre:      'Parcela Norte — Tecomán',
-    enfermedad:  'HLB (Dragón Amarillo)',
-    cultivo:     'Limón',
-    nivel:       'critico',
-    detecciones: 8,
-  },
-  {
-    id:          2,
-    nombre:      'Rancho El Limonal — Armería',
-    enfermedad:  'Araña Roja',
-    cultivo:     'Papaya',
-    nivel:       'riesgo',
-    detecciones: 5,
-  },
-  {
-    id:          3,
-    nombre:      'Huerta Sur — Tecomán',
-    enfermedad:  'Sigatoka Negra',
-    cultivo:     'Plátano',
-    nivel:       'riesgo',
-    detecciones: 3,
-  },
-];
-
-const ICONO_CULTIVO: Record<string, React.ReactNode> = {
-  Limón:   <LimonIcon   width={16} height={16} />,
-  Papaya:  <PapayaIcon  width={16} height={16} />,
-  Plátano: <PlatanoIcon width={16} height={16} />,
-};
+import { COLORS, SHADOW } from '../../constants';
+import { useAuth } from '../../context/AuthContext';
+import { getParcelasByUsuario, getDeteccionesByParcela } from '../../database/queries';
+import { Parcela, Deteccion } from '../../types';
+import { formatearArea } from '../../utils/geometria';
 
 const MapaScreen = () => {
-  const [vistaActiva, setVistaActiva] = useState<'mapa' | 'lista'>('mapa');
+  const { usuarioId } = useAuth();
+  const [parcelas, setParcelas] = useState<Parcela[]>([]);
+  const [parcelaSeleccionada, setParcelaSeleccionada] = useState<Parcela | null>(null);
+  const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mostrandoSelector, setMostrandoSelector] = useState(false);
+
+  useEffect(() => {
+    cargarParcelas();
+  }, [usuarioId]);
+
+  useEffect(() => {
+    if (parcelaSeleccionada) {
+      cargarDetecciones(parcelaSeleccionada.id);
+    }
+  }, [parcelaSeleccionada]);
+
+  const cargarParcelas = async () => {
+    try {
+      const lista = await getParcelasByUsuario(usuarioId);
+      const filtradas = lista.filter((p: Parcela) => p.id !== 'guest-parcela');
+      setParcelas(filtradas);
+      if (filtradas.length > 0) {
+        setParcelaSeleccionada(filtradas[0]);
+      }
+    } catch (error) {
+      console.error('[MapaScreen] Error cargando parcelas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarDetecciones = async (parcelaId: string) => {
+    try {
+      const lista = await getDeteccionesByParcela(parcelaId);
+      setDetecciones(lista);
+    } catch (error) {
+      console.error('[MapaScreen] Error cargando detecciones:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bgPrimary }} edges={['top']}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (parcelas.length === 0) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
+        <YStack flex={1} alignItems="center" justifyContent="center" gap="$md" px="$xl">
+          <SearchX size={56} color={COLORS.textMuted} />
+          <Text fontSize={22} fontWeight="700" color="$textSecondary" textAlign="center">
+            Sin parcelas registradas
+          </Text>
+          <Text fontSize={16} color="$textMuted" textAlign="center">
+            Registra una parcela en la pantalla de inicio para ver su mapa de calor.
+          </Text>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
+  const ultimaDeteccion = detecciones.length > 0 ? detecciones[0] : null;
+  const conteoPositivas = detecciones.filter(d => d.enfermedad_id).length;
+  const enfermedadMasComun = getEnfermedadMasComun(detecciones);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bgPrimary} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack px="$lg" pt="$xl" pb="$xxl" gap="$lg">
 
-        {/* ── Header ─────────────────────────────────────────── */}
-        <YStack px="$lg" pt="$xl" gap="$xs">
-          <Text fontSize={28} fontWeight="800" color="$textPrimary">
-            Mapa de Calor
-          </Text>
-          <Text fontSize={16} color="$textSecondary">
-            Visualización epidemiológica de Colima
-          </Text>
-        </YStack>
+          {/* Header */}
+          <YStack gap="$xs">
+            <Text fontSize={28} fontWeight="800" color="$textPrimary">
+              Mapa de Calor
+            </Text>
+            <Text fontSize={16} color="$textSecondary">
+              Visualizacion de detecciones por parcela
+            </Text>
+          </YStack>
 
-        {/* ── Selector de vista ──────────────────────────────── */}
-        <XStack
-          mx="$lg"
-          bg="$bgCard"
-          borderRadius="$lg"
-          p={4}
-          borderWidth={1}
-          borderColor="$border"
-          gap={4}
-        >
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setVistaActiva('mapa')}
-            activeOpacity={0.85}
-          >
-            <YStack
-              alignItems="center"
-              py="$sm"
-              borderRadius="$md"
-              bg={vistaActiva === 'mapa' ? COLORS.primary : 'transparent'}
+          {/* Selector de parcela */}
+          <YStack gap="$sm">
+            <Text fontSize={14} fontWeight="600" color="$textMuted">
+              Seleccionar parcela
+            </Text>
+            <TouchableOpacity
+              onPress={() => setMostrandoSelector(!mostrandoSelector)}
+              activeOpacity={0.85}
             >
-              <XStack alignItems="center" gap="$xs">
-                <Map
-                  size={18}
-                  color={vistaActiva === 'mapa' ? COLORS.white : COLORS.textSecondary}
-                />
-                <Text
-                  fontSize={16}
-                  fontWeight="700"
-                  color={vistaActiva === 'mapa' ? '$white' : '$textSecondary'}
-                >
-                  Mapa
-                </Text>
-              </XStack>
-            </YStack>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            onPress={() => setVistaActiva('lista')}
-            activeOpacity={0.85}
-          >
-            <YStack
-              alignItems="center"
-              py="$sm"
-              borderRadius="$md"
-              bg={vistaActiva === 'lista' ? COLORS.primary : 'transparent'}
-            >
-              <XStack alignItems="center" gap="$xs">
-                <List
-                  size={18}
-                  color={vistaActiva === 'lista' ? COLORS.white : COLORS.textSecondary}
-                />
-                <Text
-                  fontSize={16}
-                  fontWeight="700"
-                  color={vistaActiva === 'lista' ? '$white' : '$textSecondary'}
-                >
-                  Zonas
-                </Text>
-              </XStack>
-            </YStack>
-          </TouchableOpacity>
-        </XStack>
-
-        {vistaActiva === 'mapa' ? (
-          <>
-            {/* ── Placeholder del mapa ───────────────────────── */}
-            <YStack mx="$lg" gap="$md">
-              <YStack
-                height={280}
-                bg="$bgGreen"
-                borderRadius="$xl"
-                alignItems="center"
-                justifyContent="center"
-                borderWidth={2}
-                borderColor="$primaryLight"
-                borderStyle="dashed"
-                gap="$sm"
-                p="$lg"
-              >
-                <Map size={64} color={COLORS.primary} />
-                <Text fontSize={20} fontWeight="700" color="$primary">
-                  Mapa de Calor
-                </Text>
-                <Text fontSize={16} color="$textSecondary">
-                  Colima, México
-                </Text>
-                <Text fontSize={14} color="$textMuted" textAlign="center" lineHeight={20}>
-                  El mapa interactivo con heatmap se integrará con Google Maps SDK en la siguiente fase del proyecto
-                </Text>
-              </YStack>
-
-              {/* Leyenda del mapa */}
-              <YStack
-                bg="$bgCard"
+              <XStack
+                bg="$white"
                 borderRadius="$lg"
                 p="$md"
+                alignItems="center"
+                justifyContent="space-between"
                 borderWidth={1}
                 borderColor="$border"
-                gap="$sm"
+                style={SHADOW.sm}
               >
-                <Text fontSize={14} fontWeight="700" color="$textSecondary">
-                  Leyenda
-                </Text>
-                <XStack gap="$md">
-                  <LeyendaItem color={COLORS.semaforoRojo}    label="Zona crítica" />
-                  <LeyendaItem color={COLORS.semaforoAmarillo} label="Zona de riesgo" />
-                  <LeyendaItem color={COLORS.semaforoVerde}   label="Zona segura" />
+                <XStack alignItems="center" gap="$sm">
+                  <MapPin size={18} color={COLORS.primary} />
+                  <Text fontSize={16} fontWeight="600" color="$textPrimary">
+                    {parcelaSeleccionada?.alias || 'Selecciona una parcela'}
+                  </Text>
                 </XStack>
-              </YStack>
-            </YStack>
+                <ChevronDown size={20} color={COLORS.textSecondary} />
+              </XStack>
+            </TouchableOpacity>
 
-            {/* ── Estadísticas de la región ──────────────────── */}
-            <XStack alignItems="center" gap="$sm" px="$lg">
-              <BarChart3 size={20} color={COLORS.primary} />
+            {mostrandoSelector && (
+              <YStack
+                bg="$white"
+                borderRadius="$lg"
+                borderWidth={1}
+                borderColor="$border"
+                overflow="hidden"
+                style={SHADOW.sm}
+              >
+                {parcelas.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => {
+                      setParcelaSeleccionada(p);
+                      setMostrandoSelector(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <XStack
+                      bg={parcelaSeleccionada?.id === p.id ? '$bgGreen' : 'transparent'}
+                      p="$md"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      borderBottomWidth={0.5}
+                      borderBottomColor="$border"
+                    >
+                      <XStack alignItems="center" gap="$sm">
+                        <Sprout size={16} color={COLORS.primary} />
+                        <Text fontSize={15} fontWeight="500" color="$textPrimary">
+                          {p.alias}
+                        </Text>
+                      </XStack>
+                      <Text fontSize={12} color="$textMuted">
+                        {formatearArea(p.metros_cuadrados)}
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                ))}
+              </YStack>
+            )}
+          </YStack>
+
+          {/* Placeholder del mapa */}
+          <YStack
+            height={200}
+            bg="$bgGreen"
+            borderRadius="$xl"
+            alignItems="center"
+            justifyContent="center"
+            borderWidth={2}
+            borderColor="$primaryLight"
+            borderStyle="dashed"
+            gap="$sm"
+            p="$lg"
+          >
+            <Map size={48} color={COLORS.primary} />
+            <Text fontSize={18} fontWeight="700" color="$primary" textAlign="center">
+              Heatmap disponible pronto
+            </Text>
+            <Text fontSize={14} color="$textMuted" textAlign="center">
+              Se integrara con Mapbox en la Fase 4 para visualizar detecciones sobre el poligono de la parcela.
+            </Text>
+          </YStack>
+
+          {/* Estadisticas de la parcela seleccionada */}
+          {parcelaSeleccionada && (
+            <YStack gap="$md">
               <Text fontSize={18} fontWeight="700" color="$textPrimary">
-                Estadísticas de la región
+                {parcelaSeleccionada.alias}
               </Text>
-            </XStack>
 
-            <XStack
-              flexWrap="wrap"
-              px="$lg"
-              gap="$sm"
-            >
-              <StatBox
-                valor={`${STATS_MAPA.area_total_ha} Ha`}
-                label="Área total"
-                color={COLORS.primary}
-              />
-              <StatBox
-                valor={`${STATS_MAPA.zona_critica_pct}%`}
-                label="Zona crítica"
-                color={COLORS.semaforoRojo}
-              />
-              <StatBox
-                valor={`${STATS_MAPA.zona_riesgo_pct}%`}
-                label="Zona de riesgo"
-                color={COLORS.semaforoAmarillo}
-              />
-              <StatBox
-                valor={`${STATS_MAPA.zona_segura_pct}%`}
-                label="Zona segura"
-                color={COLORS.semaforoVerde}
-              />
-            </XStack>
+              <XStack flexWrap="wrap" gap="$sm">
+                <StatCard
+                  valor={detecciones.length}
+                  label="Detecciones"
+                  icon={AlertTriangle}
+                  color={COLORS.primary}
+                />
+                <StatCard
+                  valor={conteoPositivas}
+                  label="Positivas"
+                  icon={AlertTriangle}
+                  color={COLORS.danger}
+                />
+                <StatCard
+                  valor={formatearArea(parcelaSeleccionada.metros_cuadrados)}
+                  label="Area"
+                  icon={Ruler}
+                  color={COLORS.acento}
+                />
+              </XStack>
 
-            {/* Detecciones hoy */}
-            <XStack
-              mx="$lg"
-              bg="$bgCard"
-              borderRadius="$lg"
-              p="$lg"
-              borderWidth={1}
-              borderColor="$border"
-            >
-              <YStack flex={1} alignItems="center" gap={4}>
-                <Text fontSize={32} fontWeight="800" color="$primary">
-                  {STATS_MAPA.total_detecciones}
-                </Text>
-                <Text fontSize={14} color="$textMuted">
-                  Total escaneos
-                </Text>
-              </YStack>
+              {ultimaDeteccion && (
+                <YStack
+                  bg="$white"
+                  borderRadius="$lg"
+                  p="$md"
+                  borderWidth={1}
+                  borderColor="$border"
+                  style={SHADOW.sm}
+                  gap="$sm"
+                >
+                  <Text fontSize={14} fontWeight="600" color="$textMuted">
+                    Ultima deteccion
+                  </Text>
+                  <XStack alignItems="center" gap="$sm">
+                    {ultimaDeteccion.enfermedad_id ? (
+                      <AlertTriangle size={22} color={COLORS.danger} />
+                    ) : (
+                      <CheckCircle2 size={22} color={COLORS.success} />
+                    )}
+                    <YStack flex={1}>
+                      <Text fontSize={16} fontWeight="700" color="$textPrimary">
+                        {ultimaDeteccion.nombre_enfermedad || ultimaDeteccion.nombre_cultivo || 'Desconocido'}
+                      </Text>
+                      <Text fontSize={13} color="$textMuted">
+                        Confianza: {Math.round(ultimaDeteccion.nivel_confianza)}%
+                      </Text>
+                    </YStack>
+                    <ChevronRight size={18} color={COLORS.textMuted} />
+                  </XStack>
+                </YStack>
+              )}
 
-              <YStack width={1} bg="$border" my="$xs" />
-
-              <YStack flex={1} alignItems="center" gap={4}>
-                <Text fontSize={32} fontWeight="800" color="$danger">
-                  {STATS_MAPA.activas_hoy}
-                </Text>
-                <Text fontSize={14} color="$textMuted">
-                  Alertas hoy
-                </Text>
-              </YStack>
-            </XStack>
-          </>
-        ) : (
-          <>
-            {/* ── Vista de lista de zonas ────────────────────── */}
-            <XStack alignItems="center" gap="$sm" px="$lg">
-              <AlertTriangle size={20} color={COLORS.danger} />
-              <Text fontSize={18} fontWeight="700" color="$textPrimary">
-                Zonas con brotes activos
-              </Text>
-            </XStack>
-
-            <YStack px="$lg" gap="$md">
-              {ZONAS_ALERTA.map(zona => (
-                <ZonaCard key={zona.id} zona={zona} />
-              ))}
+              {enfermedadMasComun && (
+                <YStack
+                  bg="$white"
+                  borderRadius="$lg"
+                  p="$md"
+                  borderWidth={1}
+                  borderColor="$border"
+                  style={SHADOW.sm}
+                  gap="$sm"
+                >
+                  <Text fontSize={14} fontWeight="600" color="$textMuted">
+                    Enfermedad mas comun
+                  </Text>
+                  <XStack alignItems="center" gap="$sm">
+                    <AlertTriangle size={22} color={COLORS.danger} />
+                    <YStack flex={1}>
+                      <Text fontSize={16} fontWeight="700" color="$textPrimary">
+                        {enfermedadMasComun.nombre}
+                      </Text>
+                      <Text fontSize={13} color="$textMuted">
+                        {enfermedadMasComun.conteo} de {detecciones.length} detecciones
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </YStack>
+              )}
             </YStack>
-          </>
-        )}
+          )}
 
-        {/* ── Aviso de datos ───────────────────────────────── */}
-        <XStack
-          mx="$lg"
-          bg="$bgGreen"
-          borderRadius="$lg"
-          p="$md"
-          borderWidth={1}
-          borderColor="$primaryLight"
-          gap="$sm"
-          alignItems="flex-start"
-        >
-          <Info size={20} color={COLORS.primary} style={{ marginTop: 2 }} />
-          <Text fontSize={14} color="$textSecondary" lineHeight={20} flex={1}>
-            Los datos se actualizan automáticamente cuando los agricultores suben nuevos escaneos. La información refleja reportes de los últimos 30 días.
-          </Text>
-        </XStack>
-
+        </YStack>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// ── Componente leyenda ────────────────────────────────────────────────
-const LeyendaItem = ({ color, label }: { color: string; label: string }) => (
-  <XStack alignItems="center" gap={6}>
-    <YStack width={12} height={12} borderRadius={999} bg={color} />
-    <Text fontSize={12} color="$textSecondary">
-      {label}
-    </Text>
-  </XStack>
-);
-
-// ── Componente estadística ────────────────────────────────────────────
-const StatBox = ({ valor, label, color }: { valor: string; label: string; color: string }) => (
+const StatCard = ({
+  valor, label, icon: Icon, color,
+}: {
+  valor: string | number;
+  label: string;
+  icon: React.ElementType;
+  color: string;
+}) => (
   <YStack
-    width={(width - 32 * 2 - 8) / 2}
-    bg="$bgCard"
+    width="30%"
+    bg="$white"
     borderRadius="$lg"
     p="$md"
-    borderTopWidth={4}
+    alignItems="center"
+    gap={4}
     borderWidth={1}
     borderColor="$border"
-    gap={4}
+    style={SHADOW.sm}
   >
-    <Text fontSize={28} fontWeight="800" color={color}>
+    <Icon size={18} color={color} />
+    <Text fontSize={22} fontWeight="800" color={color}>
       {valor}
     </Text>
-    <Text fontSize={14} color="$textMuted">
+    <Text fontSize={12} color="$textMuted" textAlign="center">
       {label}
     </Text>
   </YStack>
 );
 
-// ── Componente zona de alerta ─────────────────────────────────────────
-const ZonaCard = ({ zona }: { zona: typeof ZONAS_ALERTA[0] }) => {
-  const esCritico = zona.nivel === 'critico';
-  const color      = esCritico ? COLORS.danger : COLORS.warning;
-  const colorFondo = esCritico ? COLORS.dangerLight : COLORS.warningLight;
-  const IconoNivel = esCritico ? AlertCircle : AlertTriangle;
-
-  return (
-    <YStack
-      bg="$bgCard"
-      borderRadius="$lg"
-      p="$md"
-      borderLeftWidth={5}
-      borderWidth={1}
-      borderColor="$border"
-      gap="$xs"
-      borderLeftColor={color}
-    >
-      <XStack justifyContent="space-between" alignItems="center">
-        <XStack
-          px="$sm"
-          py={4}
-          borderRadius="$full"
-          bg={colorFondo}
-          alignItems="center"
-          gap="$xs"
-        >
-          <IconoNivel size={12} color={color} />
-          <Text fontSize={12} fontWeight="700" color={color}>
-            {esCritico ? 'CRÍTICO' : 'RIESGO'}
-          </Text>
-        </XStack>
-        <Text fontSize={12} color="$textMuted">
-          {zona.detecciones} escaneos
-        </Text>
-      </XStack>
-
-      <Text fontSize={16} fontWeight="700" color="$textPrimary">
-        {zona.nombre}
-      </Text>
-
-      <XStack alignItems="center" gap="$xs">
-        {ICONO_CULTIVO[zona.cultivo]}
-        <Text fontSize={14} color="$textSecondary">
-          {zona.cultivo}
-        </Text>
-      </XStack>
-
-      <Text fontSize={14} fontWeight="600" color={color}>
-        {zona.enfermedad}
-      </Text>
-    </YStack>
-  );
+const getEnfermedadMasComun = (detecciones: Deteccion[]) => {
+  const conteo: Record<string, { nombre: string; conteo: number }> = {};
+  detecciones.forEach(d => {
+    if (d.enfermedad_id && d.nombre_enfermedad) {
+      if (!conteo[d.nombre_enfermedad]) {
+        conteo[d.nombre_enfermedad] = { nombre: d.nombre_enfermedad, conteo: 0 };
+      }
+      conteo[d.nombre_enfermedad].conteo++;
+    }
+  });
+  const valores = Object.values(conteo);
+  if (valores.length === 0) return null;
+  return valores.sort((a, b) => b.conteo - a.conteo)[0];
 };
 
 export default MapaScreen;

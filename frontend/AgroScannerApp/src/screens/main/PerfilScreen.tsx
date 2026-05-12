@@ -27,28 +27,29 @@ import {
 
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
-import { clearMockUser } from '../../database/seedData';
+import { useAuth } from '../../context/AuthContext';
 
 const PerfilScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const { usuario, estado, logout } = useAuth();
   const [notificaciones, setNotificaciones] = useState(true);
   const [modoOffline, setModoOffline] = useState(true);
 
-  // ── CONFIGURACIÓN PARA LA DEMO ───────────────────────────────────
-  const haySession = true;
-  const nombreUsuario = haySession ? 'Carlos Ramírez' : 'Invitado';
+  const isGuest = estado === 'guest';
+  const nombreUsuario = usuario?.nombre || 'Invitado';
+  const zonaAgricola = usuario?.zona_agricola || 'Colima, MX';
 
   const handleCerrarSesion = async () => {
     Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro que deseas cerrar tu sesión?',
+      'Cerrar sesion',
+      'Estas seguro que deseas cerrar tu sesion?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Cerrar sesión',
+          text: 'Cerrar sesion',
           style: 'destructive',
           onPress: async () => {
-            await clearMockUser();
+            await logout();
             navigation.replace('Welcome');
           },
         },
@@ -66,18 +67,18 @@ const PerfilScreen = () => {
           {/* ── Header de perfil ─────────────────────────────────── */}
           <YStack alignItems="center" pt="$xxl" pb="$lg" bg="$white" borderBottomWidth={1} borderBottomColor="$border" gap="$sm">
             <YStack width={90} height={90} borderRadius="$full" bg="$bgPrimary" alignItems="center" justifyContent="center" borderWidth={3} borderColor="$primary">
-              {haySession ? (
-                <UserCheck size={44} color={COLORS.primary} />
-              ) : (
-                <User size={44} color={COLORS.primary} />
-              )}
+            {!isGuest ? (
+              <UserCheck size={44} color={COLORS.primary} />
+            ) : (
+              <User size={44} color={COLORS.primary} />
+            )}
             </YStack>
             <Text fontSize={22} fontWeight="800" color="$textPrimary">
               {nombreUsuario}
             </Text>
-            {haySession ? (
+            {!isGuest ? (
               <Text fontSize={16} color="$textSecondary">
-                Agricultor · Colima, MX
+                Agricultor · {zonaAgricola}
               </Text>
             ) : (
               <YStack bg="$bgPrimary" px="$md" py={4} borderRadius="$full" borderWidth={1} borderColor="$border">
@@ -89,7 +90,7 @@ const PerfilScreen = () => {
           </YStack>
 
           {/* ── Banner: invitado ─────────────────────────────────── */}
-          {!haySession && (
+          {isGuest && (
             <YStack mx="$lg" bg="$primaryBg" borderRadius="$lg" p="$lg" gap="$xs" borderWidth={1} borderColor="$primaryLight">
               <Text fontSize={16} fontWeight="700" color="$primary">
                 Guarda tus escaneos
@@ -129,7 +130,7 @@ const PerfilScreen = () => {
             <ItemMenu
               icon={Cloud}
               label="Escaneos pendientes"
-              valor={haySession ? '0 pendientes' : '1 pendiente'}
+              valor={isGuest ? '1 pendiente' : '0 pendientes'}
               onPress={() => {}}
             />
             <ItemMenu
@@ -170,7 +171,7 @@ const PerfilScreen = () => {
           </YStack>
 
           {/* ── Cerrar sesión ────────────────────────────────────── */}
-          {haySession && (
+          {!isGuest && (
             <TouchableOpacity onPress={handleCerrarSesion} activeOpacity={0.85}>
               <YStack mx="$lg" bg="#FFF5F5" borderRadius="$lg" py="$md" alignItems="center" borderWidth={1} borderColor="#FEB2B2">
                 <XStack alignItems="center" gap="$sm">

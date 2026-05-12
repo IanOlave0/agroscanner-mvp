@@ -30,9 +30,10 @@ import {
 } from 'lucide-react-native';
 
 import { COLORS, SHADOW } from '../../constants';
-import { getParcelasByUsuario, getDeteccionesByUsuario, getUsuarioActivo } from '../../database/queries';
-import { Parcela, Deteccion, Usuario, RootStackParams } from '../../types';
+import { getParcelasByUsuario, getDeteccionesByUsuario } from '../../database/queries';
+import { Parcela, Deteccion, RootStackParams } from '../../types';
 import { formatearArea, parseGeometria } from '../../utils/geometria';
+import { useAuth } from '../../context/AuthContext';
 
 // ── Tipos de navegación ────────────────────────────────────────────
 type TabParams = {
@@ -47,33 +48,30 @@ type TabParams = {
 const HomeScreen = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParams>>();
   const stackNavigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const { estado, usuarioId, usuario } = useAuth();
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
-  const [usuarioActivo, setUsuarioActivo] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const esInvitado = estado === 'guest';
 
   useFocusEffect(
     React.useCallback(() => {
       cargarDatos();
-    }, [])
+    }, [usuarioId])
   );
 
-  /**
-   * Carga de forma asíncrona las parcelas y detecciones del usuario activo.
-   * Se ejecuta al enfocar la pantalla (useFocusEffect).
-   */
   const cargarDatos = async () => {
     try {
-      const usuario = await getUsuarioActivo() as Usuario | null;
-      if (!usuario) {
+      if (esInvitado) {
+        setParcelas([]);
+        setDetecciones([]);
         return;
       }
 
-      setUsuarioActivo(usuario);
-
       const [listaParcelas, listaDetecciones] = await Promise.all([
-        getParcelasByUsuario(usuario.id),
-        getDeteccionesByUsuario(usuario.id),
+        getParcelasByUsuario(usuarioId),
+        getDeteccionesByUsuario(usuarioId),
       ]);
 
       setParcelas(listaParcelas);
@@ -97,7 +95,7 @@ const HomeScreen = () => {
   const [displayedNombre, setDisplayedNombre] = useState('');
 
   useEffect(() => {
-    const nombreCompleto = usuarioActivo?.nombre || 'Invitado';
+    const nombreCompleto = usuario?.nombre || 'Invitado';
     setDisplayedNombre('');
     let index = 0;
 
@@ -111,7 +109,7 @@ const HomeScreen = () => {
     }, 80);
 
     return () => clearInterval(interval);
-  }, [usuarioActivo?.nombre]);
+  }, [usuario?.nombre]);
 
   const parcelasVisibles = parcelas.slice(0, 3);
   const deteccionesRecientes = detecciones.slice(0, 3);

@@ -21,7 +21,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
 // ── Iconos vectoriales (Lucide React Native) ───────────────────────
 // NOTA: requiere react-native-svg (ya incluido en dependencias).
@@ -29,6 +29,7 @@ import { Home, ScanLine, ClipboardList, Map } from 'lucide-react-native';
 
 import { RootStackParams } from '../types';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from '../constants';
+import { useAuth } from '../context/AuthContext';
 
 // ── Importación de pantallas ───────────────────────────────────────
 
@@ -58,36 +59,59 @@ import MapaScreen from '../screens/mapa/MapaScreen';
 import ParcelaGestionScreen from '../screens/parcelas/ParcelaGestionScreen';
 import ParcelaCanvasScreen  from '../screens/parcelas/ParcelaCanvasScreen';
 
+// ── Estilos nativos (tab bar) ──────────────────────────────────────
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: COLORS.white,
+    borderTopColor:  COLORS.border,
+    borderTopWidth:  1,
+    height:          72,
+    paddingHorizontal: 16,
+    paddingBottom:   15,
+    paddingTop:      3,
+  },
+  tabLabel: {
+    fontSize:   FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.medium,
+  },
+});
+
 // ── Instanciación de navegadores ───────────────────────────────────
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab   = createBottomTabNavigator();
 
-// ── Tab Navigator (navegación principal) ───────────────────────────
-/**
- * Bottom Tab Navigator con 4 pestañas principales.
- *
- * NOTA DE DISEÑO:
- * - Se optó por 4 tabs (no 5) para evitar saturación visual y problemas
- *   de espaciado en pantallas de iPhone estándar.
- * - El acceso al perfil se delega al icono de usuario en el header de HomeScreen.
- * - Se usa la API nativa tabBarLabel/tabBarIcon en lugar de un render custom
- *   para garantizar que React Navigation maneje correctamente el layout,
- *   colores activos/inactivos y safe areas.
- */
-const MainTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      headerShown: false,
-      tabBarStyle: styles.tabBar,
-      // Colores activo/inactivo gestionados nativamente por la librería
-      tabBarActiveTintColor: COLORS.primary,
-      tabBarInactiveTintColor: COLORS.textMuted,
-      // Estilo tipográfico del label debajo del icono
-      tabBarLabelStyle: styles.tabLabel,
-      // Padding vertical adicional para separar icono del texto
-      tabBarItemStyle: { paddingVertical: 4 },
-    }}
-  >
+const TAB_SCREEN_OPTIONS = {
+  headerShown: false,
+  tabBarStyle: styles.tabBar,
+  tabBarActiveTintColor: COLORS.primary,
+  tabBarInactiveTintColor: COLORS.textMuted,
+  tabBarLabelStyle: styles.tabLabel,
+  tabBarItemStyle: { paddingVertical: 4 },
+} as const;
+
+const GuestTabs = () => (
+  <Tab.Navigator screenOptions={TAB_SCREEN_OPTIONS}>
+    <Tab.Screen
+      name="Scanner"
+      component={SeleccionCultivoScreen}
+      options={{
+        tabBarLabel: 'Escanear',
+        tabBarIcon: ({ color }) => <ScanLine size={22} color={color} />,
+      }}
+    />
+    <Tab.Screen
+      name="Historial"
+      component={HistorialScreen}
+      options={{
+        tabBarLabel: 'Historial',
+        tabBarIcon: ({ color }) => <ClipboardList size={22} color={color} />,
+      }}
+    />
+  </Tab.Navigator>
+);
+
+const AuthTabs = () => (
+  <Tab.Navigator screenOptions={TAB_SCREEN_OPTIONS}>
     <Tab.Screen
       name="Home"
       component={HomeScreen}
@@ -122,6 +146,20 @@ const MainTabs = () => (
     />
   </Tab.Navigator>
 );
+
+const MainTabs = () => {
+  const { estado } = useAuth();
+
+  if (estado === 'loading') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bgPrimary }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  return estado === 'guest' ? <GuestTabs /> : <AuthTabs />;
+};
 
 // ── Stack Navigator (raíz) ─────────────────────────────────────────
 /**
@@ -163,22 +201,3 @@ const AppNavigation = () => (
 );
 
 export default AppNavigation;
-
-// ── Estilos nativos (tab bar) ──────────────────────────────────────
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: COLORS.white,
-    borderTopColor:  COLORS.border,
-    borderTopWidth:  1,
-    height:          72,
-    // Padding horizontal para separar los items de los bordes laterales
-    paddingHorizontal: 16,
-    // Padding vertical para centrar el contenido (icono + label)
-    paddingBottom:   15,
-    paddingTop:      3,
-  },
-  tabLabel: {
-    fontSize:   FONT_SIZE.xs,
-    fontWeight: FONT_WEIGHT.medium,
-  },
-});

@@ -13,8 +13,10 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshCw } from 'lucide-react-native';
 import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -39,6 +41,8 @@ const CamaraScreen = ({ navigation, route }: Props) => {
   const [cameraReady, setCameraReady] = useState(false);
   const [flash, setFlash] = useState<FlashMode>('off');
   const [facing, setFacing] = useState<CameraType>('back');
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [previewRatio, setPreviewRatio] = useState<number>(1);
   const autoPermissionRequested = useRef(false);
 
   useEffect(() => {
@@ -172,18 +176,30 @@ const CamaraScreen = ({ navigation, route }: Props) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.85,
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
 
-      const imageUri = await persistImage(result.assets[0].uri);
-      await analizarImagen(imageUri);
+      const { uri, width, height } = result.assets[0];
+      const imageUri = await persistImage(uri);
+      setPreviewUri(imageUri);
+      setPreviewRatio(width && height ? width / height : 1);
     } catch (error) {
       console.log(error);
       Alert.alert('No se pudo abrir la galeria', 'Intenta seleccionar la imagen de nuevo.');
     }
+  };
+
+  const handleConfirmarPreview = () => {
+    if (!previewUri) return;
+    const uri = previewUri;
+    setPreviewUri(null);
+    analizarImagen(uri);
+  };
+
+  const handleCancelarPreview = () => {
+    setPreviewUri(null);
   };
 
   const toggleFlash = () => {
@@ -267,7 +283,7 @@ const CamaraScreen = ({ navigation, route }: Props) => {
               onPress={toggleFacing}
               disabled={analizando}
             >
-              <Text style={styles.btnBackText}>G</Text>
+              <RefreshCw size={20} color={COLORS.white} />
             </TouchableOpacity>
           </View>
 
@@ -322,10 +338,25 @@ const CamaraScreen = ({ navigation, route }: Props) => {
               onPress={toggleFlash}
               disabled={analizando}
             >
-              <Text style={styles.btnControlText}>Flash {flash}</Text>
+              <Text style={styles.btnControlText}>
+                Flash {flash === 'off' ? 'Off' : flash === 'on' ? 'On' : 'Auto'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
+        {previewUri && (
+          <View style={styles.previewOverlay}>
+            <Image source={{ uri: previewUri }} style={[styles.previewImage, { aspectRatio: previewRatio }]} resizeMode="cover" />
+            <View style={styles.previewActions}>
+              <TouchableOpacity style={styles.previewButton} onPress={handleCancelarPreview}>
+                <Text style={styles.previewCancelText}>DESCARTAR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.previewButtonConfirm} onPress={handleConfirmarPreview}>
+                <Text style={styles.previewConfirmText}>CONFIRMAR</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -333,6 +364,11 @@ const CamaraScreen = ({ navigation, route }: Props) => {
 
 const getImageExtension = (uri: string) => {
   const cleanUri = uri.split('?')[0] ?? uri;
+
+  if (cleanUri.startsWith('content://')) {
+    return 'jpg';
+  }
+
   const match = cleanUri.match(/\.([a-zA-Z0-9]+)$/);
   return match?.[1]?.toLowerCase() || 'jpg';
 };
@@ -546,5 +582,48 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.white,
+  },
+  previewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+  },
+  previewImage: {
+    width: '100%',
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  previewButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
+  },
+  previewCancelText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.white,
+    fontWeight: FONT_WEIGHT.semibold,
+  },
+  previewButtonConfirm: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary,
+  },
+  previewConfirmText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.white,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });

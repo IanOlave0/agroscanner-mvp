@@ -25,7 +25,8 @@ import { getDatabase } from "./initDB.js";
  * @param {string} nombre - Nombre completo del agricultor
  * @param {string} email - Correo electrónico del agricultor
  * @param {string} token - JWT emitido por el backend
- * @param {string|null} zonaAgricola - Zona agrícola del agricultor (opcional)
+ * @param {string|null} [zonaAgricola=null] - Zona agrícola del agricultor (opcional)
+ * @param {string|null} [telefono=null] - Teléfono del agricultor (opcional)
  */
 export async function insertUsuario(id, nombre, email, token, zonaAgricola = null, telefono = null) {
   const db = getDatabase();

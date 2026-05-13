@@ -23,6 +23,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { YStack, XStack, Text, Input } from 'tamagui';
@@ -30,6 +31,7 @@ import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
+import { AuthService } from '../../auth/AuthService';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'Login'>;
@@ -67,9 +69,15 @@ const LoginScreen = ({ navigation }: Props) => {
   const handleLogin = async () => {
     if (!validar()) return;
     setCargando(true);
-    await new Promise<void>(r => setTimeout(r, 1000));
-    setCargando(false);
-    navigation.navigate('Home');
+    try {
+      await AuthService.signIn(correo.trim(), password);
+      navigation.navigate('Home');
+    } catch (error: any) {
+      const mensaje = error?.message || 'Correo o contrasena incorrectos.';
+      Alert.alert('Error', mensaje);
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (

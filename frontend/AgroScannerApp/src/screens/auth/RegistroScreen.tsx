@@ -32,6 +32,7 @@ import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
+import { AuthService } from '../../auth/AuthService';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParams, 'Registro'>;
@@ -102,11 +103,23 @@ const RegistroScreen = ({ navigation }: Props) => {
   const handleRegistro = async () => {
     if (!validar()) return;
     setCargando(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-    setCargando(false);
-    Alert.alert('¡Cuenta creada!', 'Tu cuenta fue creada exitosamente.', [
-      { text: 'Continuar', onPress: () => navigation.navigate('Home') },
-    ]);
+    try {
+      await AuthService.signUp(
+        correo.trim(),
+        password,
+        nombre.trim(),
+        telefono.trim() || undefined,
+        zonaAgricola.trim() || undefined,
+      );
+      Alert.alert('Cuenta creada', 'Tu cuenta fue creada exitosamente. Revisa tu correo para confirmarla.', [
+        { text: 'Continuar', onPress: () => navigation.navigate('Home') },
+      ]);
+    } catch (error: any) {
+      const mensaje = error?.message || 'No se pudo crear la cuenta. Intenta de nuevo.';
+      Alert.alert('Error', mensaje);
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (

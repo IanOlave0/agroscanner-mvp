@@ -52,6 +52,7 @@ export async function initDatabase() {
       email TEXT,
       token TEXT,
       zona_agricola TEXT,
+      telefono TEXT,
       fecha_creacion TEXT DEFAULT (datetime('now')),
       sincronizado INTEGER DEFAULT 0
     );

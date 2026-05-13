@@ -8,6 +8,7 @@ export interface Usuario {
   email:        string;
   token:        string;
   zona_agricola?: string;
+  telefono?: string;
   fecha_creacion?: string;
   sincronizado?: boolean;
 }

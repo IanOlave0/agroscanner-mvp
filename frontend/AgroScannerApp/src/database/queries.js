@@ -27,12 +27,12 @@ import { getDatabase } from "./initDB.js";
  * @param {string} token - JWT emitido por el backend
  * @param {string|null} zonaAgricola - Zona agrícola del agricultor (opcional)
  */
-export async function insertUsuario(id, nombre, email, token, zonaAgricola = null) {
+export async function insertUsuario(id, nombre, email, token, zonaAgricola = null, telefono = null) {
   const db = getDatabase();
   try {
     await db.runAsync(
-      "INSERT INTO usuarios (id, nombre, email, token, zona_agricola) VALUES (?, ?, ?, ?, ?)",
-      [id, nombre, email, token, zonaAgricola]
+      "INSERT INTO usuarios (id, nombre, email, token, zona_agricola, telefono) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, nombre, email, token, zonaAgricola, telefono]
     );
     console.log("[AgroScanner DB] Usuario insertado:", id);
   } catch (error) {

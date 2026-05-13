@@ -14,7 +14,7 @@
  * @author AgroScanner Team
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -27,7 +27,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { YStack, XStack, Text, Input } from 'tamagui';
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
+import { ChevronLeft, Eye, EyeOff, MapPin } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
@@ -37,15 +38,47 @@ type Props = {
 };
 
 const RegistroScreen = ({ navigation }: Props) => {
-  const [nombre,     setNombre]     = useState('');
-  const [correo,     setCorreo]     = useState('');
-  const [password,   setPassword]   = useState('');
-  const [confirmPwd, setConfirmPwd] = useState('');
-  const [verPwd,     setVerPwd]     = useState(false);
-  const [cargando,   setCargando]   = useState(false);
+  const [nombre,       setNombre]       = useState('');
+  const [correo,       setCorreo]       = useState('');
+  const [telefono,     setTelefono]     = useState('');
+  const [zonaAgricola, setZonaAgricola] = useState('');
+  const [password,     setPassword]     = useState('');
+  const [confirmPwd,   setConfirmPwd]   = useState('');
+  const [verPwd,       setVerPwd]       = useState(false);
+  const [cargando,     setCargando]     = useState(false);
+  const [gpsLoading,   setGpsLoading]   = useState(false);
   const [errores, setErrores] = useState({
     nombre: '', correo: '', password: '', confirmPwd: '',
   });
+
+  useEffect(() => {
+    detectarUbicacion();
+  }, []);
+
+  const detectarUbicacion = async () => {
+    try {
+      setGpsLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const location = await Location.getCurrentPositionAsync({});
+      const [geocode] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (geocode) {
+        const zona = [geocode.city, geocode.region]
+          .filter(Boolean)
+          .join(', ');
+        if (zona) setZonaAgricola(zona);
+      }
+    } catch (error) {
+      console.log('[Registro] GPS no disponible:', error);
+    } finally {
+      setGpsLoading(false);
+    }
+  };
 
   /**
    * Valida los campos del formulario antes de enviar.
@@ -132,6 +165,36 @@ const RegistroScreen = ({ navigation }: Props) => {
               error={errores.correo}
               keyboardType="email-address"
               autoCapitalize="none"
+            />
+
+            <Campo
+              label="Telefono"
+              placeholder="Opcional — para alertas"
+              value={telefono}
+              onChangeText={setTelefono}
+              keyboardType="phone-pad"
+            />
+
+            <Campo
+              label="Zona Agricola"
+              placeholder="Ej. Tecoman, Colima"
+              value={zonaAgricola}
+              onChangeText={setZonaAgricola}
+              rightElement={
+                gpsLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.primary}
+                    style={{ position: 'absolute', right: 36, top: 15 }}
+                  />
+                ) : zonaAgricola ? (
+                  <MapPin
+                    size={18}
+                    color={COLORS.primary}
+                    style={{ position: 'absolute', right: 36, top: 15 }}
+                  />
+                ) : null
+              }
             />
 
             <Campo
@@ -242,7 +305,7 @@ const Campo = ({
   onChangeText: (text: string) => void;
   error?: string;
   secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address';
+  keyboardType?: 'default' | 'email-address' | 'phone-pad';
   autoCapitalize?: 'none' | 'words';
   rightElement?: React.ReactNode;
 }) => (

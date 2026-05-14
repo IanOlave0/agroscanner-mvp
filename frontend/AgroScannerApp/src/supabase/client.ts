@@ -3,10 +3,7 @@
  * @description Cliente singleton de Supabase para la app AgroScanner.
  *
  * Credenciales:
- * Se obtienen en Supabase Dashboard → Settings → API
- * - Project URL: URL unica del proyecto
- * - anon/public key: clave publica segura para el cliente movil
- *
+ * Se configuran en el archivo .env con el prefijo EXPO_PUBLIC_.
  * La SERVICE_ROLE key NUNCA debe incluirse en el cliente movil.
  *
  * @author AgroScanner Team
@@ -14,7 +11,16 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY as string;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    '[AgroScanner Supabase] Credenciales no configuradas. Crea un archivo .env con EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_KEY.',
+  );
+}
+
+export const supabase = createClient(
+  SUPABASE_URL || '',
+  SUPABASE_ANON_KEY || '',
+);

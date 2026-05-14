@@ -45,11 +45,13 @@ const syncSupabaseSessionToLocal = async () => {
   if (!existing) {
     const nombre = session.user.user_metadata?.nombre || session.user.email || 'Agricultor';
     const token = session.access_token;
-    await insertUsuario(session.user.id, nombre, session.user.email || '', token);
+    const zona = session.user.user_metadata?.zona_agricola ?? null;
+    const telefono = session.user.user_metadata?.telefono ?? null;
+    await insertUsuario(session.user.id, nombre, session.user.email || '', token, zona, telefono);
   } else {
     await db.runAsync(
-      'UPDATE usuarios SET token = ? WHERE id = ?',
-      [session.access_token, session.user.id],
+      'UPDATE usuarios SET token = ?, zona_agricola = COALESCE(?, zona_agricola), telefono = COALESCE(?, telefono) WHERE id = ?',
+      [session.access_token, session.user.user_metadata?.zona_agricola ?? null, session.user.user_metadata?.telefono ?? null, session.user.id],
     );
   }
 

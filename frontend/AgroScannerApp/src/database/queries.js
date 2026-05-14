@@ -32,7 +32,7 @@ export async function insertUsuario(id, nombre, email, token, zonaAgricola = nul
   const db = getDatabase();
   try {
     await db.runAsync(
-      "INSERT INTO usuarios (id, nombre, email, token, zona_agricola, telefono) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT OR REPLACE INTO usuarios (id, nombre, email, token, zona_agricola, telefono) VALUES (?, ?, ?, ?, ?, ?)",
       [id, nombre, email, token, zonaAgricola, telefono]
     );
     console.log("[AgroScanner DB] Usuario insertado:", id);

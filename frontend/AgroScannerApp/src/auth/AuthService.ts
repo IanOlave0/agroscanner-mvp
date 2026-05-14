@@ -20,12 +20,13 @@ import { Usuario } from '../types';
 export const AuthService = {
   /**
    * Registra un nuevo agricultor en Supabase Auth y guarda su perfil
-   * tanto en Postgres (usuarios) como en SQLite local.
+   * en Postgres (usuarios). El guardado en SQLite local lo maneja
+   * automaticamente AuthContext via onAuthStateChange.
    *
    * Flujo:
    * 1. supabase.auth.signUp() con user_metadata (nombre, telefono, zona)
-   * 2. INSERT en tabla usuarios de Supabase (Postgres)
-   * 3. INSERT en SQLite local via insertUsuario()
+   * 2. UPSERT en tabla usuarios de Supabase (Postgres)
+   * 3. AuthContext.onAuthStateChange (SIGNED_IN) → sync a SQLite local
    *
    * @param email         Correo electronico del agricultor
    * @param password      Contrasena (minimo 6 caracteres)
@@ -59,9 +60,7 @@ export const AuthService = {
     if (error) throw error;
     if (!data.user) throw new Error('No se pudo crear la cuenta');
 
-    const token = data.session?.access_token || '';
-
-    await supabase.from('usuarios').insert({
+    await supabase.from('usuarios').upsert({
       id: data.user.id,
       nombre,
       email,
@@ -69,27 +68,18 @@ export const AuthService = {
       telefono: telefono || null,
     });
 
-    await insertUsuario(
-      data.user.id,
-      nombre,
-      email,
-      token,
-      zonaAgricola ?? null,
-      telefono ?? null,
-    );
-
     console.log('[AgroScanner Auth] Registro exitoso:', data.user.id);
     return data;
   },
 
   /**
    * Inicia sesion con correo y contrasena en Supabase Auth.
-   * Guarda o actualiza el perfil del usuario en SQLite local.
+   * El guardado en SQLite local lo maneja automaticamente
+   * AuthContext via onAuthStateChange.
    *
    * Flujo:
    * 1. supabase.auth.signInWithPassword()
-   * 2. Extraer nombre, zona y telefono de user_metadata
-   * 3. INSERT OR REPLACE en SQLite local via insertUsuario()
+   * 2. AuthContext.onAuthStateChange (SIGNED_IN) → sync a SQLite local
    *
    * @param email     Correo del agricultor
    * @param password  Contrasena
@@ -106,18 +96,6 @@ export const AuthService = {
 
     if (error) throw error;
     if (!data.user) throw new Error('Credenciales invalidas');
-
-    const token = data.session?.access_token || '';
-    const nombre = data.user.user_metadata?.nombre || data.user.email || 'Agricultor';
-
-    await insertUsuario(
-      data.user.id,
-      nombre,
-      email,
-      token,
-      data.user.user_metadata?.zona_agricola ?? null,
-      data.user.user_metadata?.telefono ?? null,
-    );
 
     console.log('[AgroScanner Auth] Sesion iniciada:', data.user.id);
     return data;

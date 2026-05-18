@@ -38,11 +38,12 @@ import { COLORS, SHADOW } from '../../constants';
 import { RootStackParams, Parcela, Usuario } from '../../types';
 import {
   insertParcela, getParcelaById, getUsuarioActivo, updateParcelaGeometria,
+  updateParcelaAlias,
 } from '../../database/queries';
 import {
   calcularAreaParcela, formatearArea, parseGeometria, serializeGeometria,
 } from '../../utils/geometria';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'expo-crypto';
 
 type ParcelaCanvasNavigationProp = NativeStackNavigationProp<RootStackParams, 'ParcelaCanvas'>;
 type ParcelaCanvasRouteProp = RouteProp<RootStackParams, 'ParcelaCanvas'>;
@@ -135,8 +136,6 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
    */
   const handleCanvasTap = (event: any) => {
     const { locationX, locationY } = event.nativeEvent;
-
-    if (isEditing) return;
 
     const centerX = CANVAS_SIZE / 2;
     const centerY = CANVAS_SIZE / 2;
@@ -284,9 +283,10 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
       if (isEditing && parcelaId) {
         await updateParcelaGeometria(parcelaId, geometriaJSON, areaM2, timestamp);
+        await updateParcelaAlias(parcelaId, nombre);
         Alert.alert('Éxito', 'Parcela actualizada correctamente');
       } else {
-        const id = uuidv4();
+        const id = randomUUID();
         await insertParcela(id, nombre, geometriaJSON, areaM2, timestamp, usuario.id);
         Alert.alert('Éxito', 'Parcela creada correctamente');
       }
@@ -435,9 +435,7 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
 
           {/* ── Botones de acción ────────────────────────────────── */}
           <YStack px="$lg" gap="$md">
-            {!isEditing && (
-              <>
-                <TouchableOpacity
+            <TouchableOpacity
                   onPress={handleDeshacer}
                   disabled={vertices.length === 0}
                   activeOpacity={0.85}
@@ -484,8 +482,6 @@ export default function ParcelaCanvasScreen({ navigation, route }: Props) {
                     </Text>
                   </YStack>
                 </TouchableOpacity>
-              </>
-            )}
 
             <TouchableOpacity
               onPress={handleGuardar}

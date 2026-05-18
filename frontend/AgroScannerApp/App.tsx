@@ -14,11 +14,13 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
+import NetInfo from '@react-native-community/netinfo';
 import tamaguiConfig from './tamagui.config';
 import AppNavigation from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
 import { initDatabase, seedDatabase } from './src/database';
 import { COLORS, FONT_SIZE, FONT_WEIGHT } from './src/constants';
+import { pushPendingData } from './src/sync/SyncManager';
 
 /**
  * Componente raíz de la aplicación.
@@ -46,6 +48,21 @@ const App = () => {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (!dbReady) return;
+
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        console.log('[AgroScanner App] Conexion detectada, iniciando sync...');
+        pushPendingData();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [dbReady]);
 
   // ── Estado de carga: base de datos no lista ──────────────────────
   if (!dbReady) {

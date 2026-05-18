@@ -20,20 +20,21 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { YStack, XStack, Text } from 'tamagui';
 import {
-  User, UserCheck, Bell, WifiOff,
+  User, UserCheck, Bell,
   Cloud, Clock, ClipboardList, Shield,
-  LogOut, ChevronRight,
+  LogOut, ChevronRight, Sprout,
 } from 'lucide-react-native';
 
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
+import { updateCompartirDatos } from '../../database/queries';
 
 const PerfilScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const { usuario, estado, logout } = useAuth();
+  const { usuario, estado, logout, refreshAuth } = useAuth();
   const [notificaciones, setNotificaciones] = useState(true);
-  const [modoOffline, setModoOffline] = useState(true);
+  const [compartirDatos, setCompartirDatos] = useState(!!usuario?.compartir_datos);
 
   const isGuest = estado === 'guest';
   const nombreUsuario = usuario?.nombre || 'Invitado';
@@ -111,18 +112,26 @@ const PerfilScreen = () => {
           {/* ── Preferencias ─────────────────────────────────────── */}
           <SeccionMenu titulo="Preferencias">
             <ItemSwitch
+              icon={Sprout}
+              label="Mis datos ayudan a la comunidad"
+              descripcion="Compartir detecciones de forma anonima para alertar a otros productores"
+              valor={compartirDatos}
+              onChange={async (v) => {
+                setCompartirDatos(v);
+                if (usuario?.id) {
+                  await updateCompartirDatos(usuario.id, v ? 1 : 0);
+                  await refreshAuth();
+                }
+              }}
+            />
+            <ItemSwitch
               icon={Bell}
               label="Notificaciones de alerta"
               valor={notificaciones}
               onChange={setNotificaciones}
             />
-            <ItemSwitch
-              icon={WifiOff}
-              label="Modo sin conexión"
-              descripcion="La IA funciona sin internet"
-              valor={modoOffline}
-              onChange={setModoOffline}
-            />
+
+
           </SeccionMenu>
 
           {/* ── Sincronización ───────────────────────────────────── */}

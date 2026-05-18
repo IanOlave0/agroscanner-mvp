@@ -14,16 +14,15 @@
  * @author AgroScanner Team
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  StatusBar, Animated, Image, ActivityIndicator, TouchableOpacity,
+  StatusBar, Animated, Image, TouchableOpacity,
 } from 'react-native';
 import { YStack, XStack, Text } from 'tamagui';
 import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../../types';
 import { COLORS, SHADOW } from '../../constants';
-import { seedMockUser } from '../../database/seedData';
 
 // ── Tipos de props ─────────────────────────────────────────────────
 type Props = {
@@ -36,8 +35,6 @@ const WelcomeScreen = ({ navigation }: Props) => {
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
-
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -59,22 +56,6 @@ const WelcomeScreen = ({ navigation }: Props) => {
       }),
     ]).start();
   }, []);
-
-  /**
-   * Inicializa un usuario de demostración en la base de datos local
-   * y navega al panel principal (Home).
-   */
-  const handleDemo = async () => {
-    try {
-      setLoading(true);
-      await seedMockUser();
-      navigation.replace('Home');
-    } catch (error) {
-      console.error('[WelcomeScreen] Error al iniciar demo:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <YStack flex={1} bg="$bgPrimary" px="$lg" pt="$xl" pb="$xl" overflow="hidden" justifyContent="space-between">
@@ -147,23 +128,6 @@ const WelcomeScreen = ({ navigation }: Props) => {
               <Text color="$primary" fontSize={18} fontWeight="800" letterSpacing={2}>
                 CREAR CUENTA
               </Text>
-            </YStack>
-          </TouchableOpacity>
-
-          {/* Botón: Modo demostración */}
-          <TouchableOpacity
-            onPress={handleDemo}
-            activeOpacity={0.85}
-            disabled={loading}
-          >
-            <YStack bg="$bgCard" borderRadius="$xl" py="$lg" alignItems="center" borderWidth={2} borderColor="$acento" style={{ ...SHADOW.sm, borderStyle: 'dashed' }}>
-              {loading ? (
-                <ActivityIndicator color={COLORS.primary} />
-              ) : (
-                <Text color="$acentoDark" fontSize={18} fontWeight="800" letterSpacing={1}>
-                    Iniciar como Demo
-                </Text>
-              )}
             </YStack>
           </TouchableOpacity>
 

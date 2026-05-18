@@ -11,12 +11,13 @@
  * @author AgroScanner Team
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   FlatList, TouchableOpacity, Alert, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { YStack, XStack, Text } from 'tamagui';
 import {
   Sprout, ArrowLeft, Plus, Pencil, Trash2, MapPin, Ruler,
@@ -143,9 +144,11 @@ export default function ParcelaGestionScreen({ navigation }: Props) {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    cargarParcelas();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarParcelas();
+    }, [])
+  );
 
   /**
    * Carga todas las parcelas del usuario activo.

@@ -14,14 +14,14 @@
 
 import React, { useState } from 'react';
 import {
-  ScrollView, StatusBar, TouchableOpacity,
+  ScrollView, StatusBar, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { YStack, XStack, Text } from 'tamagui';
 import {
-  CloudOff, Sprout, CheckCircle2, AlertTriangle, UserPlus,
+  CloudOff, Sprout, CheckCircle2, AlertTriangle, UserPlus, RefreshCw,
 } from 'lucide-react-native';
 
 import { COLORS } from '../../constants';
@@ -29,16 +29,18 @@ import { useAuth } from '../../context/AuthContext';
 import { getDeteccionesByUsuario } from '../../database/queries';
 import { Deteccion, RootStackParams } from '../../types';
 import { LimonIcon, PapayaIcon, PlatanoIcon } from '../../components/icons';
+import { pushPendingData } from '../../sync/SyncManager';
 
 const FILTROS = ['Todos', 'Limon', 'Papaya', 'Platano'];
 const FILTRO_MAPA: Record<string, number> = { Limon: 1, Papaya: 2, Platano: 3 };
 
 const HistorialScreen = () => {
-  const { usuarioId, estado } = useAuth();
+  const { usuarioId, estado, usuario } = useAuth();
   const isGuest = estado === 'guest';
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
   const [filtroActivo, setFiltroActivo] = useState('Todos');
+  const [syncing, setSyncing] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -69,7 +71,7 @@ const HistorialScreen = () => {
     }
   };
 
-  const hayPendientes = detecciones.some(d => !d.sincronizado);
+  const hayPendientes = usuario?.compartir_datos && detecciones.some(d => !d.sincronizado);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgPrimary }} edges={['top']}>
@@ -122,17 +124,48 @@ const HistorialScreen = () => {
 
           {/* Banner: sin sincronizar */}
           {hayPendientes && (
-            <XStack mx="$lg" alignItems="center" bg="#FFF9C4" borderRadius="$md" p="$md" gap="$md" mb="$md" borderWidth={1} borderColor="$warning">
-              <CloudOff size={24} color={COLORS.warning} />
-              <YStack flex={1}>
-                <Text fontSize={14} fontWeight="700" color="#856404">
-                  Tienes escaneos sin sincronizar
-                </Text>
-                <Text fontSize={12} color="$textSecondary">
-                  Se subiran automaticamente cuando tengas internet
-                </Text>
-              </YStack>
-            </XStack>
+            <YStack mx="$lg" bg="#FFF9C4" borderRadius="$md" p="$md" gap="$sm" mb="$md" borderWidth={1} borderColor="$warning">
+              <XStack alignItems="center" gap="$md">
+                <CloudOff size={24} color={COLORS.warning} />
+                <YStack flex={1}>
+                  <Text fontSize={14} fontWeight="700" color="#856404">
+                    Tienes escaneos sin sincronizar
+                  </Text>
+                  <Text fontSize={12} color="$textSecondary">
+                    Se subiran automaticamente cuando tengas internet
+                  </Text>
+                </YStack>
+              </XStack>
+              <TouchableOpacity
+                onPress={async () => {
+                  setSyncing(true);
+                  await pushPendingData();
+                  await cargarDetecciones();
+                  setSyncing(false);
+                }}
+                disabled={syncing}
+                activeOpacity={0.85}
+              >
+                <XStack
+                  alignSelf="flex-end"
+                  bg="#856404"
+                  borderRadius="$full"
+                  px="$lg"
+                  py="$sm"
+                  gap="$sm"
+                  alignItems="center"
+                >
+                  {syncing ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                  ) : (
+                    <RefreshCw size={14} color={COLORS.white} />
+                  )}
+                  <Text fontSize={13} fontWeight="700" color={COLORS.white}>
+                    {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            </YStack>
           )}
 
           {/* Filtros */}
@@ -179,11 +212,16 @@ const HistorialScreen = () => {
               </YStack>
             ) : (
               deteccionesFiltradas.map(deteccion => (
-                <TarjetaDeteccion
+                <TouchableOpacity
                   key={deteccion.id}
-                  deteccion={deteccion}
-                  getIconoCultivo={getIconoCultivo}
-                />
+                  onPress={() => navigation.navigate('DeteccionDetalle', { deteccionId: deteccion.id })}
+                  activeOpacity={0.85}
+                >
+                  <TarjetaDeteccion
+                    deteccion={deteccion}
+                    getIconoCultivo={getIconoCultivo}
+                  />
+                </TouchableOpacity>
               ))
             )}
           </YStack>
@@ -215,11 +253,12 @@ const TarjetaDeteccion = ({
     const diffHoras = Math.floor(diffMins / 60);
     const diffDias = Math.floor(diffHoras / 24);
 
-    if (diffMins < 1) return 'Ahora';
-    if (diffMins < 60) return `hace ${diffMins}m`;
-    if (diffHoras < 24) return `hace ${diffHoras}h`;
-    if (diffDias < 7) return `hace ${diffDias}d`;
-    return fecha.toLocaleDateString();
+    const fechaAbsoluta = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    if (diffDias < 1 && diffMins >= 60) return `${fechaAbsoluta} · hace ${diffHoras}h`;
+    if (diffDias < 1) return `${fechaAbsoluta} · hoy`;
+    if (diffDias < 7) return `${fechaAbsoluta} · hace ${diffDias}d`;
+    return fechaAbsoluta;
   };
 
   return (

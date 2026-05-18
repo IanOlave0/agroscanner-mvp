@@ -9,6 +9,7 @@ export interface Usuario {
   token:        string;
   zona_agricola?: string;
   telefono?: string;
+  compartir_datos?: boolean;
   fecha_creacion?: string;
   sincronizado?: boolean;
 }
@@ -76,6 +77,7 @@ export interface Deteccion {
   longitud?:         number;    // GPS metadata
   pin_latitud:       number;    // Pin manual
   pin_longitud:      number;    // Pin manual
+  compartido?:       boolean;
   fecha_creacion?:   string;
   sincronizado?:     boolean;
   // Datos relacionados (joins)
@@ -125,6 +127,9 @@ export type RootStackParams = {
   // Parcelas flow
   ParcelaGestion: undefined;
   ParcelaCanvas:  { parcelaId?: string };  // undefined = nueva, string = editar
+
+  // Historial detail
+  DeteccionDetalle: { deteccionId: string };
 };
 
 // ─────────────────────────────────────────

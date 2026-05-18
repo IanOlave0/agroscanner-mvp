@@ -23,10 +23,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { YStack, XStack, Text } from 'tamagui';
 import { MapPin, AlertTriangle, CheckCircle2, UserPlus } from 'lucide-react-native';
+import { randomUUID } from 'expo-crypto';
 
 import { COLORS, SHADOW } from '../../constants';
 import { RootStackParams } from '../../types';
-import { getUsuarioActivo, getParcelasByUsuario } from '../../database/queries';
+import { getUsuarioActivo, getParcelasByUsuario, insertDeteccion } from '../../database/queries';
 import { Usuario } from '../../types';
 
 type ResultadoDecisionNavigationProp = NativeStackNavigationProp<RootStackParams, 'ResultadoDecision'>;
@@ -91,11 +92,34 @@ const AnimatedBounceIcon = ({
   );
 };
 
+// ── Mapeo nombre de enfermedad → ID en catalogo ────────────────────
+const ENFERMEDAD_NAME_TO_ID: Record<string, number> = {
+  HLB: 1,
+  Sigatoka: 2,
+  Shigatoka: 2,
+  Araña: 3,
+};
+
+/**
+ * Obtiene el ID de enfermedad a partir del nombre detectado por la IA.
+ * Realiza busqueda por inclusion parcial (case-insensitive).
+ *
+ * @param name  Nombre de la enfermedad detectada
+ * @returns ID numerico de la enfermedad o null si no coincide
+ */
+const getEnfermedadIdFromName = (name: string): number | null => {
+  for (const [key, id] of Object.entries(ENFERMEDAD_NAME_TO_ID)) {
+    if (name.toLowerCase().includes(key.toLowerCase())) return id;
+  }
+  return null;
+};
+
 export default function ResultadoDecisionScreen({ navigation, route }: Props) {
   const { resultado, imagenUri, cultivoId, cultivoNombre } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [flujo, setFlujo] = useState<'sin_cuenta' | 'sin_parcelas' | 'con_parcelas' | null>(null);
+  const [deteccionGuardada, setDeteccionGuardada] = useState(false);
 
   const confianzaPct = (resultado.confianza * 100).toFixed(0);
   const esPositivo = resultado.resultado_positivo;
@@ -147,6 +171,47 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
       setLoading(false);
     }
   };
+
+  /**
+   * Guarda la deteccion actual como usuario invitado.
+   * Utiliza la parcela por defecto del invitado (guest-parcela)
+   * y coordenadas de pin neutras (0, 0) ya que el invitado
+   * no tiene parcelas reales registradas.
+   */
+  const guardarDeteccionInvitado = async () => {
+    try {
+      const enfermedadId = resultado.resultado_positivo
+        ? getEnfermedadIdFromName(resultado.enfermedad)
+        : null;
+      const id = randomUUID();
+
+      await insertDeteccion(
+        id,
+        'guest',
+        'guest-parcela',
+        cultivoId,
+        enfermedadId,
+        imagenUri,
+        resultado.confianza * 100,
+        null,
+        null,
+        0,
+        0,
+      );
+
+      console.log('[ResultadoDecision] Deteccion de invitado guardada:', id);
+      setDeteccionGuardada(true);
+    } catch (error) {
+      console.error('[ResultadoDecision] Error guardando deteccion de invitado:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (flujo === 'sin_cuenta' && !deteccionGuardada) {
+      guardarDeteccionInvitado();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flujo]);
 
   // ── Estado de carga ──────────────────────────────────────────────
   if (loading) {
@@ -214,14 +279,14 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
             {/* Card de diagnóstico */}
             <YStack bg="$white" borderRadius="$lg" p="$lg" style={SHADOW.md}>
               <Text fontSize={14} color="$textMuted" mb={4}>
-                Enfermedad detectada:
+                {esPositivo ? 'Enfermedad detectada:' : 'Diagnóstico:'}
               </Text>
               <Text fontSize={22} fontWeight="700" color={colorHeader} mb={12}>
-                {resultado.enfermedad}
+                {esPositivo ? resultado.enfermedad : 'Planta sana'}
               </Text>
               <YStack height={1} bg="$border" my={12} />
               <Text fontSize={14} color="$textMuted" mb={4}>
-                Tratamiento sugerido:
+                {esPositivo ? 'Tratamiento sugerido:' : 'Recomendación preventiva:'}
               </Text>
               <Text fontSize={16} color="$textSecondary" lineHeight={22}>
                 {resultado.tratamiento}
@@ -231,6 +296,25 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
             {/* ── Flujo: Sin cuenta ──────────────────────────────── */}
             {flujo === 'sin_cuenta' && (
               <YStack gap="$lg">
+                {/* Deteccion guardada localmente */}
+                <YStack
+                  bg={COLORS.successLight}
+                  borderRadius="$lg"
+                  p="$lg"
+                  borderWidth={1}
+                  borderColor={COLORS.success}
+                  alignItems="center"
+                  gap="$sm"
+                >
+                  <CheckCircle2 size={32} color={COLORS.success} />
+                  <Text fontSize={16} fontWeight="700" color={COLORS.success} textAlign="center">
+                    Escaneo guardado localmente
+                  </Text>
+                  <Text fontSize={14} color="$textSecondary" textAlign="center" lineHeight={20}>
+                    Crea una cuenta para sincronizar tus detecciones en la nube y ubicarlas en tus parcelas.
+                  </Text>
+                </YStack>
+
                 <YStack
                   bg="$primaryBg"
                   borderRadius="$lg"
@@ -240,7 +324,6 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
                   alignItems="center"
                   gap="$sm"
                 >
-                  {/* Icono animado pulse */}
                   <AnimatedPulseIcon color={COLORS.primary}>
                     <UserPlus size={48} color={COLORS.primary} />
                   </AnimatedPulseIcon>
@@ -263,7 +346,7 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 </YStack>
 
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')} activeOpacity={0.85}>
                   <YStack p="$md" alignItems="center">
                     <Text fontSize={16} fontWeight="600" color="$textMuted">
                       Volver al inicio
@@ -308,7 +391,7 @@ export default function ResultadoDecisionScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 </YStack>
 
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')} activeOpacity={0.85}>
                   <YStack borderWidth={1} borderColor="$primary" borderRadius="$md" py="$md" alignItems="center">
                     <Text fontSize={16} fontWeight="700" color="$primary">
                       Volver al inicio

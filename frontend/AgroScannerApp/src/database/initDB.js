@@ -53,6 +53,7 @@ export async function initDatabase() {
       token TEXT,
       zona_agricola TEXT,
       telefono TEXT,
+      compartir_datos INTEGER DEFAULT 0,
       fecha_creacion TEXT DEFAULT (datetime('now')),
       sincronizado INTEGER DEFAULT 0
     );
@@ -112,6 +113,7 @@ export async function initDatabase() {
       longitud REAL,
       pin_latitud REAL,
       pin_longitud REAL,
+      compartido INTEGER DEFAULT 0,
       fecha_creacion TEXT DEFAULT (datetime('now')),
       sincronizado INTEGER DEFAULT 0,
       FOREIGN KEY (usuario_id) REFERENCES usuarios(id),

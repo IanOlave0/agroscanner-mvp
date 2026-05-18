@@ -3,6 +3,7 @@ import { getDatabase } from '../database/initDB';
 import { getUsuarioActivo, insertUsuario } from '../database/queries';
 import { supabase } from '../supabase/client';
 import { type Usuario } from '../types';
+import { pushPendingData } from '../sync/SyncManager';
 
 type AuthState = 'loading' | 'guest' | 'authenticated';
 
@@ -42,23 +43,49 @@ const syncSupabaseSessionToLocal = async () => {
     [session.user.id],
   ) as Usuario | null;
 
+  const nombre = session.user.user_metadata?.nombre || session.user.email || 'Agricultor';
+  const zona = session.user.user_metadata?.zona_agricola ?? null;
+  const telefono = session.user.user_metadata?.telefono ?? null;
+
   if (!existing) {
-    const nombre = session.user.user_metadata?.nombre || session.user.email || 'Agricultor';
-    const token = session.access_token;
-    const zona = session.user.user_metadata?.zona_agricola ?? null;
-    const telefono = session.user.user_metadata?.telefono ?? null;
-    await insertUsuario(session.user.id, nombre, session.user.email || '', token, zona, telefono);
+    await insertUsuario(session.user.id, nombre, session.user.email || '', session.access_token, zona, telefono);
   } else {
     await db.runAsync(
       'UPDATE usuarios SET token = ?, zona_agricola = COALESCE(?, zona_agricola), telefono = COALESCE(?, telefono) WHERE id = ?',
-      [session.access_token, session.user.user_metadata?.zona_agricola ?? null, session.user.user_metadata?.telefono ?? null, session.user.id],
+      [session.access_token, zona, telefono, session.user.id],
     );
+  }
+
+  const { error: upsertError } = await supabase.from('usuarios').upsert({
+    id: session.user.id,
+    nombre,
+    email: session.user.email || '',
+    zona_agricola: zona ?? null,
+    telefono: telefono ?? null,
+  }, { onConflict: 'id' });
+
+  if (upsertError) {
+    console.error('[AuthContext] Error haciendo upsert de usuario a Supabase:', upsertError);
   }
 
   return await db.getFirstAsync(
     'SELECT * FROM usuarios WHERE id = ?',
     [session.user.id],
   ) as Usuario | null;
+};
+
+/**
+ * Dispara la sincronizacion offline-first si el usuario acepto
+ * compartir datos. La ejecucion es fire-and-forget para no
+ * bloquear el flujo de autenticacion; SyncManager gestiona
+ * su propia bandera de concurrencia (syncing).
+ *
+ * @param user  Usuario autenticado con campo compartir_datos
+ */
+const triggerSyncIfEligible = (user: Usuario) => {
+  if (user.compartir_datos) {
+    pushPendingData();
+  }
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -74,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (syncedUser) {
           setEstado('authenticated');
           setUsuario(syncedUser);
+          triggerSyncIfEligible(syncedUser);
           return;
         }
       }
@@ -82,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (localUser) {
         setEstado('authenticated');
         setUsuario(localUser);
+        triggerSyncIfEligible(localUser);
       } else {
         await ensureGuestRow();
         setEstado('guest');
@@ -89,6 +118,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('[AuthContext] Error refreshing auth:', error);
+      const localUser = await getUsuarioActivo() as Usuario | null;
+      if (localUser) {
+        setEstado('authenticated');
+        setUsuario(localUser);
+        triggerSyncIfEligible(localUser);
+        return;
+      }
       await ensureGuestRow();
       setEstado('guest');
       setUsuario(null);
@@ -99,9 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const db = getDatabase();
     try {
       if (usuario) {
-        await db.runAsync('DELETE FROM detecciones WHERE usuario_id = ?', [usuario.id]);
-        await db.runAsync('DELETE FROM parcelas WHERE usuario_id = ?', [usuario.id]);
-        await db.runAsync('DELETE FROM usuarios WHERE id = ?', [usuario.id]);
+        await db.runAsync('UPDATE usuarios SET token = NULL WHERE id = ?', [usuario.id]);
       }
       await supabase.auth.signOut();
       await ensureGuestRow();
@@ -121,6 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (syncedUser) {
           setEstado('authenticated');
           setUsuario(syncedUser);
+          triggerSyncIfEligible(syncedUser);
         }
       } else if (event === 'SIGNED_OUT') {
         await ensureGuestRow();

@@ -117,10 +117,8 @@ export const AuthService = {
 
     const db = getDatabase();
     try {
-      await db.runAsync('DELETE FROM detecciones WHERE usuario_id IS NOT NULL');
-      await db.runAsync('DELETE FROM parcelas WHERE usuario_id IS NOT NULL');
-      await db.runAsync('DELETE FROM usuarios WHERE token IS NOT NULL');
-      console.log('[AgroScanner Auth] Datos locales del usuario eliminados');
+      await db.runAsync("UPDATE usuarios SET token = NULL WHERE token IS NOT NULL");
+      console.log('[AgroScanner Auth] Token local limpiado');
     } catch (error) {
       console.error('[AgroScanner Auth] Error limpiando BD local:', error);
     }

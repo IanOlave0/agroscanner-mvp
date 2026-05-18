@@ -383,11 +383,11 @@ const getResultadoSimulado = (cultivoId: number): ResultadoIA => {
       tratamiento: 'No tiene cura. Retire el arbol infectado inmediatamente para evitar propagacion. Controle el vector y contacte a SENASICA para reporte oficial.',
     },
     2: {
-      enfermedad: 'Arana Roja',
+      enfermedad: 'Araña Roja',
       confianza: 0.78,
-      resultado_positivo: false,
-      nivel_riesgo: 'sano',
-      tratamiento: 'La hoja luce saludable. Continue con monitoreo preventivo cada 15 dias y mantenga riego adecuado.',
+      resultado_positivo: true,
+      nivel_riesgo: 'alto',
+      tratamiento: 'Aplique acaricida natural (jabon potasico) cada 7 dias. Introduzca depredadores naturales como Phytoseiulus persimilis. Evite el exceso de nitrogeno en la fertilizacion.',
     },
     3: {
       enfermedad: 'Sigatoka Negra',

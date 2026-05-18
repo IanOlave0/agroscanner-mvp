@@ -27,13 +27,15 @@ import {
   User, WifiOff, Sprout, MapPin, ChevronRight,
   CheckCircle2, AlertCircle, AlertTriangle,
   SearchX, ClipboardList, Map as MapIcon,
+  ShieldAlert,
 } from 'lucide-react-native';
 
 import { COLORS, SHADOW } from '../../constants';
-import { getParcelasByUsuario, getDeteccionesByUsuario } from '../../database/queries';
+import { getParcelasByUsuario, getDeteccionesByUsuario, updateCompartirDatos } from '../../database/queries';
 import { Parcela, Deteccion, RootStackParams } from '../../types';
 import { formatearArea, parseGeometria } from '../../utils/geometria';
 import { useAuth } from '../../context/AuthContext';
+import ConsentimientoModal from '../../components/ConsentimientoModal';
 
 // ── Tipos de navegación ────────────────────────────────────────────
 type TabParams = {
@@ -48,10 +50,11 @@ type TabParams = {
 const HomeScreen = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParams>>();
   const stackNavigation = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const { estado, usuarioId, usuario } = useAuth();
+  const { estado, usuarioId, usuario, refreshAuth } = useAuth();
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConsentimiento, setShowConsentimiento] = useState(false);
 
   const esInvitado = estado === 'guest';
 
@@ -123,11 +126,11 @@ const HomeScreen = () => {
 
           {/* ── Header: saludo typewriter + acceso a perfil ──────── */}
           <XStack justifyContent="space-between" alignItems="flex-start" mb="$xs">
-            <YStack>
+            <YStack flex={1}>
               <Text fontSize={16} color="$textSecondary">
                 Bienvenido,
               </Text>
-              <Text fontSize={28} fontWeight="800" color="$textPrimary" lineHeight={36} mt="$xs" height={36}>
+              <Text fontSize={28} fontWeight="800" color="$textPrimary" lineHeight={36} mt="$xs">
                 {displayedNombre}
                 <Text fontSize={28} fontWeight="800" color="$primary">
                   {'|'}
@@ -151,13 +154,38 @@ const HomeScreen = () => {
             <WifiOff size={28} color={COLORS.primary} />
             <YStack flex={1}>
               <Text fontSize={16} fontWeight="600" color="$primary">
-                Modo sin conexión disponible
+                Modo sin conexion disponible
               </Text>
               <Text fontSize={14} color="$textSecondary">
                 La IA funciona directo en tu celular
               </Text>
             </YStack>
           </XStack>
+
+          {/* ── Banner: recordatorio de consentimiento ────────────── */}
+          {!esInvitado && usuario && !usuario.compartir_datos && (
+            <TouchableOpacity onPress={() => setShowConsentimiento(true)} activeOpacity={0.85}>
+              <XStack
+                alignItems="center"
+                bg={COLORS.acentoLight}
+                borderRadius="$md"
+                p="$md"
+                gap="$md"
+                borderWidth={1}
+                borderColor={COLORS.acento}
+              >
+                <ShieldAlert size={24} color={COLORS.acentoDark} />
+                <YStack flex={1}>
+                  <Text fontSize={14} fontWeight="700" color={COLORS.acentoDark}>
+                    Tus detecciones pueden alertar a otros productores sobre plagas
+                  </Text>
+                  <Text fontSize={12} color={COLORS.textSecondary} mt={2}>
+                    Cuando quieras, puedes activarlo tocando aqui.
+                  </Text>
+                </YStack>
+              </XStack>
+            </TouchableOpacity>
+          )}
 
           {/* ── Panel: Mis Parcelas ──────────────────────────────── */}
           <YStack bg="$white" borderRadius="$lg" overflow="hidden" style={SHADOW.md}>
@@ -237,6 +265,34 @@ const HomeScreen = () => {
 
         </YStack>
       </ScrollView>
+
+      <ConsentimientoModal
+        visible={showConsentimiento}
+        onAccept={async () => {
+          setShowConsentimiento(false);
+          try {
+            await updateCompartirDatos(usuarioId, 1);
+            await refreshAuth();
+            setDetecciones([]);
+            setParcelas([]);
+            await cargarDatos();
+          } catch (error) {
+            console.error('[HomeScreen] Error guardando consentimiento:', error);
+          }
+        }}
+        onDecline={async () => {
+          setShowConsentimiento(false);
+          try {
+            await updateCompartirDatos(usuarioId, 0);
+            await refreshAuth();
+            setDetecciones([]);
+            setParcelas([]);
+            await cargarDatos();
+          } catch (error) {
+            console.error('[HomeScreen] Error guardando consentimiento:', error);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -280,16 +336,10 @@ const DeteccionCard = ({ deteccion }: { deteccion: Deteccion }) => {
   const { icon: RiesgoIcon, color: riesgoColor, texto: riesgoTexto } = getNivelRiesgoMeta(deteccion);
 
   /**
-   * Formatea una fecha relativa desde un timestamp ISO/UTC.
-   * SQLite almacena fechas en UTC (datetime('now')).
-   * Se normaliza el string a ISO 8601 con 'Z' para forzar interpretación UTC
-   * y evitar desfases por zona horaria del dispositivo.
-   *
-   * @param fechaStr Timestamp en formato 'YYYY-MM-DD HH:MM:SS' (SQLite) u ISO.
-   * @returns Cadena legible como "hace Xm", "hace Xh", "hace Xd" o fecha local.
+   * Formatea una fecha combinando fecha absoluta + tiempo relativo.
+   * Ej: "15 may 2026 · hoy", "12 may 2026 · hace 3d", "1 ene 2026".
    */
   const formatFechaRelativa = (fechaStr: string) => {
-    // Normalizar formato SQLite → ISO 8601 UTC (ej: 2026-05-03 20:00:00 → 2026-05-03T20:00:00Z)
     const isoStr = fechaStr.includes('T') ? fechaStr : fechaStr.replace(' ', 'T') + 'Z';
     const fecha = new Date(isoStr);
     const ahora = new Date();
@@ -298,11 +348,12 @@ const DeteccionCard = ({ deteccion }: { deteccion: Deteccion }) => {
     const diffHoras = Math.floor(diffMins / 60);
     const diffDias = Math.floor(diffHoras / 24);
 
-    if (diffMins < 1) return 'Ahora';
-    if (diffMins < 60) return `hace ${diffMins}m`;
-    if (diffHoras < 24) return `hace ${diffHoras}h`;
-    if (diffDias < 7) return `hace ${diffDias}d`;
-    return fecha.toLocaleDateString();
+    const fechaAbsoluta = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    if (diffDias < 1 && diffMins >= 60) return `${fechaAbsoluta} · hace ${diffHoras}h`;
+    if (diffDias < 1) return `${fechaAbsoluta} · hoy`;
+    if (diffDias < 7) return `${fechaAbsoluta} · hace ${diffDias}d`;
+    return fechaAbsoluta;
   };
 
   return (

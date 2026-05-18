@@ -35,9 +35,12 @@ import { COLORS, SHADOW } from '../../constants';
 import { RootStackParams, ResultadoIA, Parcela, Usuario } from '../../types';
 import {
   getParcelasByUsuario, getUsuarioActivo, insertDeteccion,
+  updateCompartirDatos,
 } from '../../database/queries';
-import { parseGeometria, puntoEnPoligono, getCentroide } from '../../utils/geometria';
-import { v4 as uuidv4 } from 'uuid';
+import ConsentimientoModal from '../../components/ConsentimientoModal';
+import { parseGeometria, puntoEnPoligono } from '../../utils/geometria';
+import { useAuth } from '../../context/AuthContext';
+import { randomUUID } from 'expo-crypto';
 
 type PinPlacementNavigationProp = NativeStackNavigationProp<RootStackParams, 'PinPlacement'>;
 type PinPlacementRouteProp = RouteProp<RootStackParams, 'PinPlacement'>;
@@ -57,12 +60,28 @@ interface PinPosition {
   lng: number;
 }
 
+const ENFERMEDAD_NAME_TO_ID: Record<string, number> = {
+  HLB: 1,
+  Sigatoka: 2,
+  Shigatoka: 2,
+  Araña: 3,
+};
+
+const getEnfermedadIdFromName = (name: string): number | null => {
+  for (const [key, id] of Object.entries(ENFERMEDAD_NAME_TO_ID)) {
+    if (name.toLowerCase().includes(key.toLowerCase())) return id;
+  }
+  return null;
+};
+
 export default function PinPlacementScreen({ navigation, route }: Props) {
   const { resultado, imagenUri, cultivoId, cultivoNombre } = route.params;
+  const { refreshAuth } = useAuth();
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [parcelaSeleccionada, setParcelaSeleccionada] = useState<Parcela | null>(null);
   const [pin, setPin] = useState<PinPosition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showConsentimiento, setShowConsentimiento] = useState(false);
 
   useEffect(() => {
     cargarParcelas();
@@ -121,10 +140,23 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
     const { locationX, locationY } = event.nativeEvent;
 
     const vertices = parseGeometria(parcelaSeleccionada.geometria);
-    const centroide = getCentroide(vertices);
 
-    const lat = centroide.lat + (locationY - CANVAS_SIZE / 2) * 0.000001;
-    const lng = centroide.lng + (locationX - CANVAS_SIZE / 2) * 0.000001;
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity, maxLng = -Infinity;
+    vertices.forEach(v => {
+      if (v.lat < minLat) minLat = v.lat;
+      if (v.lat > maxLat) maxLat = v.lat;
+      if (v.lng < minLng) minLng = v.lng;
+      if (v.lng > maxLng) maxLng = v.lng;
+    });
+
+    const latRange = maxLat - minLat || 0.001;
+    const lngRange = maxLng - minLng || 0.001;
+    const padding = 20;
+    const usableSize = CANVAS_SIZE - padding * 2;
+
+    const lng = minLng + ((locationX - padding) / usableSize) * lngRange;
+    const lat = minLat + ((locationY - padding) / usableSize) * latRange;
 
     const newPin: PinPosition = {
       x: locationX,
@@ -144,6 +176,8 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
 
   /**
    * Guarda la detección vinculada a parcela y coordenadas.
+   * Si el usuario no ha definido su consentimiento de compartir datos,
+   * muestra el modal de consentimiento antes de confirmar.
    */
   const handleGuardar = async () => {
     if (!parcelaSeleccionada) {
@@ -163,8 +197,10 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
         return;
       }
 
-      const enfermedadId = resultado.resultado_positivo ? null : null;
-      const id = uuidv4();
+      const enfermedadId = resultado.resultado_positivo
+        ? getEnfermedadIdFromName(resultado.enfermedad)
+        : null;
+      const id = randomUUID();
 
       await insertDeteccion(
         id,
@@ -180,15 +216,56 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
         pin.lng
       );
 
+      if (!usuario.compartir_datos) {
+        setShowConsentimiento(true);
+        return;
+      }
+
       Alert.alert(
-        'Éxito',
-        'Detección guardada correctamente',
-        [{ text: 'OK', onPress: () => navigation.navigate('Historial') }]
+        'Exito',
+        'Deteccion guardada correctamente',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home', { screen: 'Historial' } as any) }]
       );
     } catch (error) {
-      console.error('[PinPlacement] Error guardando detección:', error);
-      Alert.alert('Error', 'No se pudo guardar la detección');
+      console.error('[PinPlacement] Error guardando deteccion:', error);
+      Alert.alert('Error', 'No se pudo guardar la deteccion');
     }
+  };
+
+  const handleConsentimientoAceptar = async () => {
+    setShowConsentimiento(false);
+    try {
+      const usuario = await getUsuarioActivo() as Usuario | null;
+      if (usuario) {
+        await updateCompartirDatos(usuario.id, 1);
+        await refreshAuth();
+      }
+    } catch (error) {
+      console.error('[PinPlacement] Error guardando consentimiento:', error);
+    }
+    Alert.alert(
+      'Gracias',
+      'Tus datos ayudaran a proteger los cultivos de la region. Siempre puedes cambiar esto en tu perfil.',
+      [{ text: 'OK', onPress: () => navigation.navigate('Home', { screen: 'Historial' } as any) }]
+    );
+  };
+
+  const handleConsentimientoRechazar = async () => {
+    setShowConsentimiento(false);
+    try {
+      const usuario = await getUsuarioActivo() as Usuario | null;
+      if (usuario) {
+        await updateCompartirDatos(usuario.id, 0);
+        await refreshAuth();
+      }
+    } catch (error) {
+      console.error('[PinPlacement] Error guardando consentimiento:', error);
+    }
+    Alert.alert(
+      'Entendido',
+      'Tus datos se quedan solo en tu telefono. Puedes activarlo cuando quieras desde tu perfil.',
+      [{ text: 'OK', onPress: () => navigation.navigate('Home', { screen: 'Historial' } as any) }]
+    );
   };
 
   /**
@@ -199,11 +276,24 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
     if (!parcelaSeleccionada) return null;
 
     const vertices = parseGeometria(parcelaSeleccionada.geometria);
-    const centroide = getCentroide(vertices);
 
-    const scaled = vertices.map((v) => ({
-      x: (v.lng - centroide.lng) * 50000 + CANVAS_SIZE / 2,
-      y: (v.lat - centroide.lat) * 50000 + CANVAS_SIZE / 2,
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity, maxLng = -Infinity;
+    vertices.forEach(v => {
+      if (v.lat < minLat) minLat = v.lat;
+      if (v.lat > maxLat) maxLat = v.lat;
+      if (v.lng < minLng) minLng = v.lng;
+      if (v.lng > maxLng) maxLng = v.lng;
+    });
+
+    const latRange = maxLat - minLat || 0.001;
+    const lngRange = maxLng - minLng || 0.001;
+    const padding = 20;
+    const usableSize = CANVAS_SIZE - padding * 2;
+
+    const scaled = vertices.map(v => ({
+      x: padding + ((v.lng - minLng) / lngRange) * usableSize,
+      y: padding + ((v.lat - minLat) / latRange) * usableSize,
     }));
 
     return (
@@ -442,6 +532,12 @@ export default function PinPlacementScreen({ navigation, route }: Props) {
 
         </YStack>
       </ScrollView>
+
+      <ConsentimientoModal
+        visible={showConsentimiento}
+        onAccept={handleConsentimientoAceptar}
+        onDecline={handleConsentimientoRechazar}
+      />
     </SafeAreaView>
   );
 }

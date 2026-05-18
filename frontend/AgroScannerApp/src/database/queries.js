@@ -98,6 +98,27 @@ export async function updateUsuario(id, zonaAgricola, sincronizado = 0) {
 }
 
 /**
+ * Actualiza la preferencia de compartir datos del usuario.
+ * Controla si los datos del agricultor se sincronizan a la nube.
+ *
+ * @param {string} id - UUID del usuario
+ * @param {number} compartir - 1 = activado, 0 = desactivado
+ */
+export async function updateCompartirDatos(id, compartir) {
+  const db = getDatabase();
+  try {
+    await db.runAsync(
+      "UPDATE usuarios SET compartir_datos = ? WHERE id = ?",
+      [compartir, id]
+    );
+    console.log("[AgroScanner DB] Compartir datos actualizado:", id, compartir);
+  } catch (error) {
+    console.error("[AgroScanner DB] Error updating compartir_datos:", error);
+    throw error;
+  }
+}
+
+/**
  * Obtiene el usuario actualmente logeado (único registro en tabla usuarios)
  * Se usa para verificar sesión activa en inicio de app
  * 
@@ -124,7 +145,7 @@ export async function getUsuarioActivo() {
 export async function updateToken(token) {
   const db = getDatabase();
   try {
-    await db.runAsync("UPDATE usuarios SET token = ?", [token]);
+    await db.runAsync("UPDATE usuarios SET token = ? WHERE token IS NOT NULL", [token]);
     console.log("[AgroScanner DB] Token actualizado");
   } catch (error) {
     console.error("[AgroScanner DB] Error updating token:", error);
@@ -514,6 +535,31 @@ export async function getDeteccionById(id) {
 }
 
 /**
+ * Obtiene una detección con sus datos relacionados (cultivo, enfermedad, parcela)
+ * para la pantalla de detalle. Incluye nombres legibles mediante JOIN.
+ *
+ * @param {string} id - UUID de la detección
+ * @returns {Promise<Object|null>} Detección con campos nombre_cultivo, nombre_enfermedad y parcela_alias
+ */
+export async function getDeteccionDetalle(id) {
+  const db = getDatabase();
+  try {
+    return await db.getFirstAsync(
+      `SELECT d.*, c.nombre as nombre_cultivo, e.nombre as nombre_enfermedad, p.alias as parcela_alias
+       FROM detecciones d
+       JOIN cultivos c ON d.cultivo_id = c.id
+       JOIN parcelas p ON d.parcela_id = p.id
+       LEFT JOIN enfermedades e ON d.enfermedad_id = e.id
+       WHERE d.id = ?`,
+      [id]
+    );
+  } catch (error) {
+    console.error("[AgroScanner DB] Error getting deteccion detalle:", error);
+    throw error;
+  }
+}
+
+/**
  * Obtiene todas las detecciones de un usuario
  * Incluye nombres de cultivo/enfermedad y alias de parcela (JOIN)
  * Ordenadas por fecha descendente (más recientes primero)
@@ -525,7 +571,7 @@ export async function getDeteccionesByUsuario(usuarioId) {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      `SELECT d.*, c.nombre as cultivo_nombre, e.nombre as enfermedad_nombre, p.alias as parcela_alias
+      `SELECT d.*, c.nombre as nombre_cultivo, e.nombre as nombre_enfermedad, p.alias as parcela_alias
        FROM detecciones d
        JOIN cultivos c ON d.cultivo_id = c.id
        JOIN parcelas p ON d.parcela_id = p.id
@@ -551,7 +597,7 @@ export async function getDeteccionesByParcela(parcelaId) {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      `SELECT d.*, c.nombre as cultivo_nombre, e.nombre as enfermedad_nombre
+      `SELECT d.*, c.nombre as nombre_cultivo, e.nombre as nombre_enfermedad
        FROM detecciones d
        JOIN cultivos c ON d.cultivo_id = c.id
        LEFT JOIN enfermedades e ON d.enfermedad_id = e.id
@@ -591,11 +637,12 @@ export async function deleteDeteccion(id) {
  * 
  * @returns {Promise<Array>} Array de detecciones con sincronizado = 0
  */
-export async function getDeteccionesPendientes() {
+export async function getDeteccionesPendientes(usuarioId) {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      "SELECT * FROM detecciones WHERE sincronizado = 0 ORDER BY fecha_creacion"
+      "SELECT * FROM detecciones WHERE sincronizado = 0 AND usuario_id = ? ORDER BY fecha_creacion",
+      [usuarioId]
     );
   } catch (error) {
     console.error("[AgroScanner DB] Error getting detecciones pendientes:", error);
@@ -609,11 +656,12 @@ export async function getDeteccionesPendientes() {
  * 
  * @returns {Promise<Array>}
  */
-export async function getParcelasPendientes() {
+export async function getParcelasPendientes(usuarioId) {
   const db = getDatabase();
   try {
     return await db.getAllAsync(
-      "SELECT * FROM parcelas WHERE sincronizado = 0 ORDER BY fecha_creacion"
+      "SELECT * FROM parcelas WHERE sincronizado = 0 AND usuario_id = ? ORDER BY fecha_creacion",
+      [usuarioId]
     );
   } catch (error) {
     console.error("[AgroScanner DB] Error getting parcelas pendientes:", error);

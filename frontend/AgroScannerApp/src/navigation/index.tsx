@@ -51,6 +51,7 @@ import PinPlacementScreen      from '../screens/scanner/PinPlacementScreen';
 
 // Historial
 import HistorialScreen from '../screens/historial/HistorialScreen';
+import DeteccionDetalleScreen from '../screens/historial/DeteccionDetalleScreen';
 
 // Mapa
 import MapaScreen from '../screens/mapa/MapaScreen';
@@ -197,6 +198,9 @@ const AppNavigation = () => (
     {/* ── Flujo de gestión de parcelas ───────────────────────────── */}
     <Stack.Screen name="ParcelaGestion" component={ParcelaGestionScreen} />
     <Stack.Screen name="ParcelaCanvas"  component={ParcelaCanvasScreen} />
+
+    {/* ── Detalle de detección ──────────────────────────────────── */}
+    <Stack.Screen name="DeteccionDetalle" component={DeteccionDetalleScreen} />
   </Stack.Navigator>
 );
 
